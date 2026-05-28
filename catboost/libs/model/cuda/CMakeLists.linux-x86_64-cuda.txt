@@ -14,6 +14,18 @@
 
 add_library(libs-model-cuda)
 
+if (HAVE_ROCM)
+  if(${CMAKE_VERSION} VERSION_LESS "3.17.0")
+      message(FATAL_ERROR "Build with HIP requires at least cmake 3.17.0")
+  endif()
+
+  enable_language(HIP)
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -D__HIP_PLATFORM_AMD__")
+
+
+  find_package(HIP REQUIRED)
+  target_include_directories(libs-model-cuda PRIVATE ${HIP_INCLUDE_DIRS})
+endif()
 
 target_link_libraries(libs-model-cuda PUBLIC
   contrib-libs-linux-headers
@@ -28,16 +40,24 @@ target_cuda_sources(libs-model-cuda PRIVATE
   ${PROJECT_SOURCE_DIR}/catboost/libs/model/cuda/evaluator.cu
 )
 
-
+if (NOT HAVE_ROCM)
 target_cuda_flags(libs-model-cuda
   -lineinfo
   --use_fast_math
   -Wno-deprecated-gpu-targets
 )
+endif()
 
 add_global_library_for(libs-model-cuda.global
   libs-model-cuda)
 
+if(HAVE_ROCM)
+    target_include_directories(libs-model-cuda.global PRIVATE ${HIP_INCLUDE_DIRS})
+    # Only add link directories if catboost CLI target exists (not building python-package only)
+    if(TARGET catboost)
+        target_link_directories(catboost PRIVATE /opt/rocm/lib)
+    endif()
+endif()
 
 target_link_libraries(libs-model-cuda.global PUBLIC
   contrib-libs-linux-headers
@@ -51,4 +71,5 @@ target_link_libraries(libs-model-cuda.global PUBLIC
 target_sources(libs-model-cuda.global PRIVATE
   ${PROJECT_SOURCE_DIR}/catboost/libs/model/cuda/evaluator.cpp
 )
+
 

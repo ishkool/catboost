@@ -459,10 +459,15 @@ def get_catboost_components(targets : Iterable[str]) -> Set[str]:
 
     return catboost_components
 
-def get_default_build_platform_toolchain(source_root_dir: str) -> str:
+def get_default_build_platform_toolchain(source_root_dir: str, cuda_root_dir: Optional[str] = None) -> str:
     if platform.system().lower() == 'windows':
         return os.path.abspath(os.path.join(source_root_dir, 'build', 'toolchains', 'default.toolchain'))
     else:
+        # Check if we're using ROCm instead of NVIDIA CUDA
+        if cuda_root_dir and 'rocm' in cuda_root_dir.lower():
+            rocm_toolchain = os.path.abspath(os.path.join(source_root_dir, 'build', 'toolchains', 'rocm.toolchain'))
+            if os.path.exists(rocm_toolchain):
+                return rocm_toolchain
         return os.path.abspath(os.path.join(source_root_dir, 'build', 'toolchains', 'clang.toolchain'))
 
 def get_build_environ(opts: Opts, target_platform: str, cmd_runner: CmdRunner):
@@ -565,7 +570,9 @@ def build(
     source_root_dir = get_source_root_dir()
 
     if opts.cmake_target_toolchain is None:
-        cmake_target_toolchain = get_default_build_platform_toolchain(source_root_dir)
+        # Pass cuda_root_dir if building with CUDA/ROCm to allow toolchain selection
+        cuda_root_for_toolchain = opts.cuda_root_dir if opts.have_cuda else None
+        cmake_target_toolchain = get_default_build_platform_toolchain(source_root_dir, cuda_root_for_toolchain)
     else:
         cmake_target_toolchain = opts.cmake_target_toolchain
 
@@ -710,3 +717,4 @@ if __name__ == '__main__':
     parsed_args.cmake_extra_args += cmake_extra_args
 
     build(Opts(**vars(parsed_args)))
+

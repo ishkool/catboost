@@ -75,6 +75,20 @@ void TCalcScoreFold::TVectorSlicing::CreateByControl(
     NPar::ILocalExecutor* localExecutor
 ) {
     Slices.yresize(docBlockParams.GetBlockCount());
+#if defined(__HIP_PLATFORM_AMD__)
+    // ROCm/HIP: vector<bool> is a proxy specialization in clang's libc++ (no .data()).
+    // Capture by reference and index directly rather than using GetDataPtr(control).
+    TSlice* slicesData = GetDataPtr(Slices);
+    localExecutor->ExecRange(
+        [&control, slicesData, &docBlockParams](int sliceIdx) {
+            int sliceSize = 0;
+            NPar::TLocalExecutor::BlockedLoopBody(
+                docBlockParams,
+                [&control, &sliceSize](int doc) {sliceSize += control[doc];}
+            )(sliceIdx);
+            slicesData[sliceIdx].Size = sliceSize;
+        },
+#else
     const bool* controlData = GetDataPtr(control);
     TSlice* slicesData = GetDataPtr(Slices);
     localExecutor->ExecRange(
@@ -87,6 +101,7 @@ void TCalcScoreFold::TVectorSlicing::CreateByControl(
             )(sliceIdx);
             slicesData[sliceIdx].Size = sliceSize;
         },
+#endif
         0,
         docBlockParams.GetBlockCount(),
         NPar::TLocalExecutor::WAIT_COMPLETE
@@ -132,7 +147,11 @@ void TCalcScoreFold::TVectorSlicing::CreateByQueriesInfoAndControl(
     dstQueriesInfo->resize(srcQueriesInfo.size());
     Slices.yresize(queryBlockParams.GetBlockCount());
 
+#if defined(__HIP_PLATFORM_AMD__)
+    // ROCm/HIP: vector<bool> is a proxy specialization (no .data()); index directly.
+#else
     const bool* controlData = GetDataPtr(control);
+#endif
     localExecutor->ExecRange(
         [&](int sliceIdx) {
             int beginQueryIdx = queryBlockParams.GetBlockSize() * sliceIdx;
@@ -154,7 +173,11 @@ void TCalcScoreFold::TVectorSlicing::CreateByQueriesInfoAndControl(
                 if (isPairwiseScoring) {
                     perQuerySrcToDstDocIdx.yresize(srcQueryInfo.GetSize());
                     for (int srcDocLocalIdx : xrange(srcQueryInfo.GetSize())) {
+#if defined(__HIP_PLATFORM_AMD__)
+                        if (control[srcQueryInfo.Begin + srcDocLocalIdx]) {
+#else
                         if (controlData[srcQueryInfo.Begin + srcDocLocalIdx]) {
+#endif
                             perQuerySrcToDstDocIdx[srcDocLocalIdx] = dstQueryDocCount;
                             ++dstQueryDocCount;
                             if (!srcQueryInfo.SubgroupId.empty()) {
@@ -188,7 +211,11 @@ void TCalcScoreFold::TVectorSlicing::CreateByQueriesInfoAndControl(
                     }
                 } else {
                     for (int srcDocLocalIdx : xrange(srcQueryInfo.GetSize())) {
+#if defined(__HIP_PLATFORM_AMD__)
+                        if (control[srcQueryInfo.Begin + srcDocLocalIdx]) {
+#else
                         if (controlData[srcQueryInfo.Begin + srcDocLocalIdx]) {
+#endif
                             ++dstQueryDocCount;
                             if (!srcQueryInfo.SubgroupId.empty()) {
                                 dstQueryInfo.SubgroupId.push_back(srcQueryInfo.SubgroupId[srcDocLocalIdx]);
@@ -440,8 +467,19 @@ static inline void SetElementsToConstant(
 
 template <typename TFoldType>
 void TCalcScoreFold::SelectBlockFromFold(const TFoldType& fold, TSlice srcBlock, TSlice dstBlock) {
+#if defined(__HIP_PLATFORM_AMD__)
+    // ROCm/HIP: TVector<bool> is bit-packed (no .data()). Materialize a temporary
+    // TVector<ui8> to obtain a contiguous bool buffer to feed into SetElements.
+    int ignored = 0;
+    TVector<ui8> srcControlBlock(srcBlock.Size);
+    for (size_t i = 0; i < srcBlock.Size; ++i) {
+        srcControlBlock[i] = Control[srcBlock.Offset + i] ? 1 : 0;
+    }
+    TArrayRef<const bool> srcControlRef(reinterpret_cast<const bool*>(srcControlBlock.data()), srcControlBlock.size());
+#else
     int ignored;
     const auto srcControlRef = srcBlock.GetConstRef(Control);
+#endif
     SetElements(
         srcControlRef,
         srcBlock.GetConstRef(fold.LearnPermutationFeaturesSubset.template Get<TIndexedSubset<ui32>>()),
@@ -555,9 +593,20 @@ void TCalcScoreFold::SelectSmallestSplitSide(
     BodyTailCount = fold.GetBodyTailCount();
     localExecutor->ExecRange(
         [&](int blockIdx) {
+#if defined(__HIP_PLATFORM_AMD__)
+            // ROCm/HIP: vector<bool> bit-packed; materialize a contiguous ui8 buffer.
+            int ignored = 0;
+            const auto srcBlock = srcBlocks.Slices[blockIdx];
+            TVector<ui8> srcControlBlock(srcBlock.Size);
+            for (size_t i = 0; i < srcBlock.Size; ++i) {
+                srcControlBlock[i] = Control[srcBlock.Offset + i] ? 1 : 0;
+            }
+            TArrayRef<const bool> srcControlRef(reinterpret_cast<const bool*>(srcControlBlock.data()), srcControlBlock.size());
+#else
             int ignored;
             const auto srcBlock = srcBlocks.Slices[blockIdx];
             const auto srcControlRef = srcBlock.GetConstRef(Control);
+#endif
             const auto srcIndicesRef = srcBlock.GetConstRef(fold.Indices);
             const auto dstBlock = dstBlocks.Slices[blockIdx];
             const TIndexType splitWeight = 1 << (curDepth - 1);
@@ -771,10 +820,22 @@ void TCalcScoreFold::Sample(
     BodyTailCount = fold.BodyTailArr.ysize();
     localExecutor->ExecRange(
         [&](int blockIdx) {
+#if defined(__HIP_PLATFORM_AMD__)
+            // ROCm/HIP: vector<bool> bit-packed; materialize a contiguous ui8 buffer.
+            const auto srcBlock = srcBlocks.Slices[blockIdx];
+            TVector<ui8> srcControlBlock(srcBlock.Size);
+            for (size_t i = 0; i < srcBlock.Size; ++i) {
+                srcControlBlock[i] = Control[srcBlock.Offset + i] ? 1 : 0;
+            }
+            TArrayRef<const bool> srcControlRef(reinterpret_cast<const bool*>(srcControlBlock.data()), srcControlBlock.size());
+            const auto dstBlock = dstBlocks.Slices[blockIdx];
+            int ignored = 0;
+#else
             const auto srcBlock = srcBlocks.Slices[blockIdx];
             const auto srcControlRef = srcBlock.GetConstRef(Control);
             const auto dstBlock = dstBlocks.Slices[blockIdx];
             int ignored;
+#endif
             SetElements(
                 srcControlRef,
                 srcBlock.GetConstRef(indices),
@@ -825,8 +886,18 @@ void TCalcScoreFold::UpdateIndices(TConstArrayRef<TIndexType> indices, NPar::ILo
         [&](int blockIdx) {
             const auto srcBlock = srcBlocks.Slices[blockIdx];
             const auto dstBlock = dstBlocks.Slices[blockIdx];
+#if defined(__HIP_PLATFORM_AMD__)
+            // ROCm/HIP: vector<bool> bit-packed; materialize a contiguous ui8 buffer.
+            int ignored = 0;
+            TVector<ui8> srcControlBlock(srcBlock.Size);
+            for (size_t i = 0; i < srcBlock.Size; ++i) {
+                srcControlBlock[i] = Control[srcBlock.Offset + i] ? 1 : 0;
+            }
+            TArrayRef<const bool> srcControlRef(reinterpret_cast<const bool*>(srcControlBlock.data()), srcControlBlock.size());
+#else
             int ignored;
             const auto srcControlRef = srcBlock.GetConstRef(Control);
+#endif
             SetElements(
                 srcControlRef,
                 srcBlock.GetConstRef(indices),
@@ -859,6 +930,34 @@ void TCalcScoreFold::TFoldPartitionOutput::Create(int size, int dimension, bool 
 
 TCalcScoreFold::TFoldPartitionOutput::TSlice TCalcScoreFold::TFoldPartitionOutput::GetSlice(TIndexRange<ui32> range) {
     TSlice slice;
+#if defined(__HIP_PLATFORM_AMD__)
+    // ROCm/HIP: TVector iterators are not raw pointers in clang's libc++; use (data, size) form.
+    slice.SampleWeights = TArrayRef<float>(
+        SampleWeights.data() + range.Begin,
+        range.End - range.Begin
+    );
+    slice.IndexInFold = TArrayRef<ui32>(
+        IndexInFold.data() + range.Begin,
+        range.End - range.Begin
+    );
+    slice.LearnPermutationFeaturesSubset = TArrayRef<ui32>(
+        LearnPermutationFeaturesSubset.data() + range.Begin,
+        range.End - range.Begin
+    );
+    if (HasOfflineEstimatedFeatures) {
+        slice.LearnPermutationOfflineEstimatedFeaturesSubset = TArrayRef<ui32>(
+            LearnPermutationOfflineEstimatedFeaturesSubset.data() + range.Begin,
+            range.End - range.Begin
+        );
+    }
+    slice.SampleWeightedDerivatives.resize(Dimension);
+    for (auto dim : xrange(Dimension)) {
+        slice.SampleWeightedDerivatives[dim] = TArrayRef<double>(
+            SampleWeightedDerivatives[dim].data() + range.Begin,
+            range.End - range.Begin
+        );
+    }
+#else
     slice.SampleWeights = {
         SampleWeights.begin() + range.Begin,
         SampleWeights.begin() + range.End
@@ -884,6 +983,7 @@ TCalcScoreFold::TFoldPartitionOutput::TSlice TCalcScoreFold::TFoldPartitionOutpu
             SampleWeightedDerivatives[dim].begin() + range.End
         };
     }
+#endif
     return slice;
 }
 
@@ -996,17 +1096,17 @@ void TCalcScoreFold::UpdateIndicesInLeafwiseSortedFoldForSingleLeafImpl(
         }
     }
 
-    // fill indices
+    // fill indices - use .data() for C++20 compatibility
     ParallelFill(
         leftChildIdx,
         blockSize,
         localExecutor,
-        {Indices.begin() + leafBounds.Begin, static_cast<size_t>(leftCount)});
+        TArrayRef<TIndexType>(Indices.data() + leafBounds.Begin, leftCount));
     ParallelFill(
         rightChildIdx,
         blockSize,
         localExecutor,
-        {Indices.begin() + leafBounds.Begin + leftCount, static_cast<size_t>(rightCount)});
+        TArrayRef<TIndexType>(Indices.data() + leafBounds.Begin + leftCount, rightCount));
 }
 
 // for lossguide
@@ -1147,6 +1247,28 @@ void TCalcScoreFold::SetSmallestSideControl(
         trueCount += size;
     }
     const TIndexType splitWeight = 1 << (curDepth - 1);
+#if defined(__HIP_PLATFORM_AMD__)
+    // ROCm/HIP: vector<bool> has no raw pointer access; index directly through Control.
+    if (trueCount * 2 > docCount) {
+        SmallestSplitSideValue = false;
+        localExecutor->ExecRange(
+            [&, splitWeight, indicesData](int docIdx) {
+                Control[docIdx] = indicesData[docIdx] < splitWeight;
+            },
+            blockParams,
+            NPar::TLocalExecutor::WAIT_COMPLETE
+        );
+    } else {
+        SmallestSplitSideValue = true;
+        localExecutor->ExecRange(
+            [&, splitWeight, indicesData](int docIdx) {
+                Control[docIdx] = indicesData[docIdx] > splitWeight - 1;
+            },
+            blockParams,
+            NPar::TLocalExecutor::WAIT_COMPLETE
+        );
+    }
+#else
     bool* controlData = GetDataPtr(Control);
     if (trueCount * 2 > docCount) {
         SmallestSplitSideValue = false;
@@ -1167,6 +1289,7 @@ void TCalcScoreFold::SetSmallestSideControl(
             NPar::TLocalExecutor::WAIT_COMPLETE
         );
     }
+#endif
 }
 
 void TCalcScoreFold::SetSampledControl(
@@ -1181,10 +1304,17 @@ void TCalcScoreFold::SetSampledControl(
     }
     if (samplingUnit == ESamplingUnit::Group) {
         for (auto& queryInfo : queriesInfo) {
+            auto isTaken = rand->GenRandReal1() < BernoulliSampleRate;
+#if defined(__HIP_PLATFORM_AMD__)
+            // ROCm/HIP: vector<bool> has no raw pointer; use indexed assignment.
+            for (ui32 docIdx = queryInfo.Begin; docIdx < queryInfo.End; ++docIdx) {
+                Control[docIdx] = isTaken;
+            }
+#else
             auto itBegin = GetDataPtr(Control, queryInfo.Begin);
             auto itEnd = GetDataPtr(Control, queryInfo.End);
-            auto isTaken = rand->GenRandReal1() < BernoulliSampleRate;
             Fill(itBegin, itEnd, isTaken);
+#endif
         }
     } else {
         for (int docIdx = 0; docIdx < docCount; ++docIdx) {
@@ -1340,3 +1470,9 @@ void TStats3D::Add(const TStats3D& stats3D) {
         Stats[statIdx].Add(stats3D.Stats[statIdx]);
     }
 }
+
+
+
+
+
+

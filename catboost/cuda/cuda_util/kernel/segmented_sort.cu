@@ -1,6 +1,11 @@
 #include "segmented_sort.cuh"
 
+#if defined(__HIP_PLATFORM_AMD__)
+#include <hipcub/device/device_segmented_radix_sort.hpp>
+namespace cub = hipcub;
+#else
 #include <cub/device/device_segmented_radix_sort.cuh>
+#endif
 
 namespace NKernel {
 
@@ -82,3 +87,4 @@ namespace NKernel {
     SEGMENTED_RADIX_SORT(ui32)
 
 }
+

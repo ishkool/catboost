@@ -11,7 +11,12 @@
 
 #include <initializer_list>
 
+#if defined(__HIP_PLATFORM_AMD__)
+#include <hip/hip_runtime.h>
+#include "cuda_rocm_interop.h"
+#else
 #include <cuda_runtime.h>
+#endif
 
 
 namespace NCuda {
@@ -19,7 +24,9 @@ namespace NCuda {
     enum class EMemoryType {
         Host,
         Device,
-    #if (CUDART_VERSION >= 10000)
+    #if defined(__HIP_PLATFORM_AMD__)
+        Managed,
+    #elif (CUDART_VERSION >= 10000)
         Managed,
     #endif
         Cpu
@@ -31,6 +38,9 @@ namespace NCuda {
         CUDA_SAFE_CALL(cudaPointerGetAttributes(&attributes, (void*)(ptr)));
         //TODO(noxoomo): currently don't distinguish pinned/non-pinned memory
         cudaMemoryType type;
+    #if defined(__HIP_PLATFORM_AMD__)
+        type = attributes.type;
+    #else
     #ifndef CUDART_VERSION
     #error "CUDART_VERSION is not defined: include cuda_runtime_api.h"
     #elif (CUDART_VERSION >= 10000)
@@ -38,10 +48,18 @@ namespace NCuda {
     #else
         type = attributes.memoryType;
     #endif
+    #endif
         if (type == cudaMemoryTypeHost) {
             return EMemoryType::Host;
         } else if (type == cudaMemoryTypeDevice) {
             return EMemoryType::Device;
+    #if defined(__HIP_PLATFORM_AMD__)
+        } else if (type == cudaMemoryTypeManaged) {
+            return EMemoryType::Managed;
+        } else {
+            return EMemoryType::Cpu;
+        }
+    #else
     #if (CUDART_VERSION >= 10000)
         } else if (type == cudaMemoryTypeManaged) {
             return EMemoryType::Managed;
@@ -49,6 +67,7 @@ namespace NCuda {
         } else {
             return EMemoryType::Cpu;
         }
+    #endif
     }
 
     template <class T>

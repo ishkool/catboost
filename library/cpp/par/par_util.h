@@ -100,8 +100,20 @@ namespace NPar {
     inline void Map(TJobDescription* job, TMapReduceCmd<TInput, TOutput>* cmd, TVector<TInput>* src) {
         job->SetCurrentOperation(cmd);
         TVector<char> buf;
-        for (int i = 0; i < src->ysize(); ++i)
+        for (int i = 0; i < src->ysize(); ++i) {
+#if defined(__HIP_PLATFORM_AMD__)
+            // ROCm/HIP: vector<bool>::operator[] returns a proxy reference that
+            // cannot bind to a const T& argument; materialize a temporary.
+            if constexpr (std::is_same_v<TInput, bool>) {
+                bool temp = (*src)[i];
+                job->AddMap(temp);
+            } else {
+                job->AddMap((*src)[i]);
+            }
+#else
             job->AddMap((*src)[i]);
+#endif
+        }
     }
 
     class TJobExecutor {
@@ -236,3 +248,4 @@ namespace NPar {
         targetEnvironment->SetContextData(targetLocations);
     }
 }
+

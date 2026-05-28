@@ -30,6 +30,7 @@ target_include_directories(contrib-libs-libunwind PRIVATE
 target_link_libraries(contrib-libs-libunwind PUBLIC
   contrib-libs-linux-headers
   cpp-sanitizer-include
+  c
 )
 
 target_sources(contrib-libs-libunwind PRIVATE

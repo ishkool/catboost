@@ -4,7 +4,11 @@
 #include <cstdlib>
 #include <cstddef>
 #include <cstring>
+
+#if !defined(__HIP_PLATFORM_AMD__)
 #include <stlfwd>
+#endif
+
 #include <string>
 #include <string_view>
 #include <type_traits>
@@ -1362,3 +1366,4 @@ template <class TCharType, class TTraits>
 void ResizeUninitialized(TBasicString<TCharType, TTraits>& s, size_t len) {
     s.ReserveAndResize(len);
 }
+

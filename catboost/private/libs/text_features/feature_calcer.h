@@ -15,7 +15,11 @@
 #include <util/stream/input.h>
 #include <util/system/mutex.h>
 
+#if defined(__HIP_PLATFORM_AMD__)
+#include <array>  // ROCm/HIP: use system libc++ <array>
+#else
 #include <array>
+#endif
 
 namespace NCB {
 
@@ -192,3 +196,4 @@ namespace NCB {
         static constexpr ui32 Alignment = 16;
     };
 }
+

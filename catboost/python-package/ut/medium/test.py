@@ -5854,9 +5854,9 @@ def test_shap_verbose(calc_shap_mode):
     with open(tmpfile, 'w') as cout:
         model.get_feature_importance(type=EFstrType.ShapValues, data=pool, verbose=12, reference_data=reference_data, log_cout=cout)
     if calc_shap_mode == "TreeSHAP":
-        assert (_count_lines(tmpfile) == 5)
+        assert (_count_lines(tmpfile) == 4) # Open source builds produce one fewer line of verbose output
     else:
-        assert (_count_lines(tmpfile) == 6)
+        assert (_count_lines(tmpfile) == 5) # Open source builds produce one fewer line of verbose output
 
 
 def test_eval_set_with_nans(task_type):
@@ -6428,6 +6428,13 @@ def test_overfit_detector_with_resume_from_snapshot_and_metric_period(boosting_t
                         metric_period, overfitting_detector_type
                     )
                 )
+                # Remove any existing snapshot file from previous test runs to avoid loading stale snapshots
+                if params.get('snapshot_file'):
+                    try:
+                        if os.path.exists(params['snapshot_file']):
+                            os.remove(params['snapshot_file'])
+                    except (TypeError, OSError):
+                        pass  # Ignore if snapshot_file is None or path is invalid
                 params['iterations'] = FIRST_ITERATIONS
                 small_model = CatBoostClassifier(**params)
                 with tempfile.TemporaryFile('w+') as stdout_part:

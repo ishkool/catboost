@@ -4,7 +4,12 @@
 #include <catboost/cuda/cuda_util/kernel/random_gen.cuh>
 #include <catboost/cuda/cuda_util/kernel/fill.cuh>
 
+#if defined(__HIP_PLATFORM_AMD__)
+#include <hipcub/block/block_radix_sort.hpp>
+namespace cub = hipcub;
+#else
 #include <cub/block/block_radix_sort.cuh>
+#endif
 
 namespace NKernel {
 
@@ -27,7 +32,7 @@ namespace NKernel {
         const ui32 blockSize = 256;
         const ui32 numBlocks = (docCount + blockSize - 1) / blockSize;
 
-        WriteCompressedIndexImpl<< < numBlocks, blockSize, 0, stream >> > (feature, bins, docCount, cindex);
+        WriteCompressedIndexImpl<<<numBlocks, blockSize, 0, stream>>>(feature, bins, docCount, cindex);
     }
 
 
@@ -248,11 +253,11 @@ namespace NKernel {
 
         if (atomicUpdate)
         {
-            BinarizeFloatFeatureImpl<true, blockSize, docsPerThread> << < numBlocks, blockSize, 0, stream >> > (feature, values, docCount,
+            BinarizeFloatFeatureImpl<true, blockSize, docsPerThread><<<numBlocks, blockSize, 0, stream>>>(feature, values, docCount,
                     borders, gatherIndex,
                     dst);
         } else {
-            BinarizeFloatFeatureImpl<false, blockSize, docsPerThread> << < numBlocks, blockSize, 0, stream >> > (feature, values, docCount,
+            BinarizeFloatFeatureImpl<false, blockSize, docsPerThread><<<numBlocks, blockSize, 0, stream>>>(feature, values, docCount,
                     borders, gatherIndex,
                     dst);
         }
@@ -260,3 +265,5 @@ namespace NKernel {
 
 
 }
+
+

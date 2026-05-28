@@ -26,5 +26,6 @@ target_link_libraries(contrib-libs-clapack INTERFACE
   contrib-libs-linux-headers
   libs-clapack-part1
   libs-clapack-part2
+  lapack
 )
 

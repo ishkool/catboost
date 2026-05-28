@@ -294,6 +294,11 @@ function(detect_compiler compiler compiler_version compiler_runtime compiler_run
         set(_compiler "clang")
         string(REPLACE "." ";" VERSION_LIST ${CMAKE_CXX_COMPILER_VERSION})
         list(GET VERSION_LIST 0 _compiler_version)
+        # Cap clang version at 18 for Conan compatibility (ROCm clang is version 20)
+        if(_compiler_version GREATER 18)
+            set(_compiler_version 18)
+            message(STATUS "CMake-Conan: Capping clang version to 18 for Conan compatibility (actual: ${CMAKE_CXX_COMPILER_VERSION})")
+        endif()
     elseif(_compiler MATCHES GNU)
         set(_compiler "gcc")
         string(REPLACE "." ";" VERSION_LIST ${CMAKE_CXX_COMPILER_VERSION})
@@ -699,3 +704,4 @@ if(NOT _cmake_program)
 endif()
 
 cmake_policy(POP)
+

@@ -441,6 +441,75 @@ namespace NPackers {
         return value;
     }
 
+#if defined(__HIP_PLATFORM_AMD__)
+    // ROCm/HIP only: clang's libc++ vector<bool> is bit-packed and lacks contiguous storage,
+    // so the generic TContainerPacker template fails to instantiate. Provide a
+    // specialization that boxes elements through real bool temporaries.
+    template <class EP>
+    class TContainerPacker<TVector<bool>, EP> {
+    private:
+        typedef TVector<bool> TContainer;
+        typedef EP TElementPacker;
+        typedef TContainer::const_iterator TElementIterator;
+
+        void UnpackLeafVector(const char* buffer, TContainer& result) const {
+            size_t offset = TIntegralPacker<size_t>().SkipLeaf(buffer);
+            size_t len;
+            TIntegralPacker<size_t>().UnpackLeaf(buffer + offset, len);
+            offset += TIntegralPacker<size_t>().SkipLeaf(buffer + offset);
+            result.resize(len);
+
+            for (size_t i = 0; i < len; i++) {
+                bool temp;
+                TElementPacker().UnpackLeaf(buffer + offset, temp);
+                result[i] = temp;
+                offset += TElementPacker().SkipLeaf(buffer + offset);
+            }
+        }
+
+        friend class TContainerPackerHelper<true>;
+
+    public:
+        void UnpackLeaf(const char* buffer, TContainer& c) const {
+            UnpackLeafVector(buffer, c);
+        }
+
+        void PackLeaf(char* buffer, const TContainer& data, size_t size) const {
+            size_t sizeOfSize = TIntegralPacker<size_t>().MeasureLeaf(size);
+            TIntegralPacker<size_t>().PackLeaf(buffer, size, sizeOfSize);
+            size_t len = data.size();
+            size_t curSize = TIntegralPacker<size_t>().MeasureLeaf(len);
+            TIntegralPacker<size_t>().PackLeaf(buffer + sizeOfSize, len, curSize);
+            curSize += sizeOfSize;
+            for (size_t i = 0; i < len; i++) {
+                bool temp = data[i];
+                size_t sizeChange = TElementPacker().MeasureLeaf(temp);
+                TElementPacker().PackLeaf(buffer + curSize, temp, sizeChange);
+                curSize += sizeChange;
+            }
+            Y_ASSERT(curSize == size);
+        }
+
+        size_t MeasureLeaf(const TContainer& data) const {
+            size_t curSize = TIntegralPacker<size_t>().MeasureLeaf(data.size());
+            for (size_t i = 0; i < data.size(); i++) {
+                bool temp = data[i];
+                curSize += TElementPacker().MeasureLeaf(temp);
+            }
+            size_t extraSize = TIntegralPacker<size_t>().MeasureLeaf(curSize);
+            extraSize = TIntegralPacker<size_t>().MeasureLeaf(curSize + extraSize);
+            Y_ASSERT(extraSize == TIntegralPacker<size_t>().MeasureLeaf(curSize + extraSize));
+            return curSize + extraSize;
+        }
+
+        size_t SkipLeaf(const char* buffer) const {
+            size_t value;
+            TIntegralPacker<size_t>().UnpackLeaf(buffer, value);
+            return value;
+        }
+    };
+#endif  // __HIP_PLATFORM_AMD__
+
     // TPairPacker --- for std::pair<T1, T2> (any two types; can be nested)
     // TPacker<T1> and TPacker<T2> should be valid classes
 
@@ -609,3 +678,5 @@ namespace NPackers {
     };
 
 }
+
+

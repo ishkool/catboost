@@ -317,7 +317,12 @@ inline NCB::IDynamicBlockIteratorBasePtr TCompressedArray::GetBlockIterator(ui64
         return GetBlockIterator(*consecutiveSubsetBegin + offset, remainingSize);
     }
     auto getIter = [&] (auto dataRef) -> NCB::IDynamicBlockIteratorBasePtr {
+#if defined(__HIP_PLATFORM_AMD__)
+        // ROCm/HIP: libc++ on this platform exposes the internal __remove_cvref_t in some configs
+        using TInterfaceValue = std::__remove_cvref_t<decltype(dataRef[0])>;
+#else
         using TInterfaceValue = std::remove_cvref_t<decltype(dataRef[0])>;
+#endif
         return MakeArraySubsetBlockIterator<TInterfaceValue>(
             subsetIndexing,
             dataRef,
@@ -419,4 +424,5 @@ inline TVector<T> DecompressVector(const TVector<TStorageType>& compressedData, 
 
     return dst;
 }
+
 

@@ -61,11 +61,18 @@ namespace NPar {
         for (THashMap<int, TFullCtxInfo>::iterator i = EnvId2Info.begin(); i != EnvId2Info.end(); ++i) {
             TFullCtxInfo& info = i->second;
             for (int hostId = 0; hostId < info.HostId2Computer.ysize(); ++hostId) {
+#if defined(__HIP_PLATFORM_AMD__)
+                // ROCm/HIP: clang's libc++ vector<bool>::operator[] returns a proxy,
+                // not bool&; bind via direct indexing instead of `bool& ref =`.
+                if (info.IsFullyDistributed[hostId])
+                    continue;
+                info.IsFullyDistributed[hostId] = true;
+#else
                 bool& isFullyDistributed = info.IsFullyDistributed[hostId];
                 if (isFullyDistributed)
                     continue;
-
                 isFullyDistributed = true;
+#endif
                 const TVector<int>& compList = info.HostId2Computer[hostId];
                 int partCount = info.Data[hostId].GetPartCount();
                 for (int part = 0; part < partCount; ++part) {
@@ -83,7 +90,11 @@ namespace NPar {
                                 src.SrcComps.push_back(compId);
                             }
                         } else {
+#if defined(__HIP_PLATFORM_AMD__)
+                            info.IsFullyDistributed[hostId] = false;
+#else
                             isFullyDistributed = false;
+#endif
                             allComplete = false;
                             if (!info.CopyInitiated[compId][part]) {
                                 target.push_back(compId);
@@ -475,3 +486,4 @@ namespace NPar {
 
     //////////////////////////////////////////////////////////////////////////
 }
+

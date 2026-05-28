@@ -1,8 +1,13 @@
 #pragma once
 
 #include "fwd.h"
-
+#if defined(__HIP_PLATFORM_AMD__)
+#include "cuda_rocm_interop.h"
+#include <hip/hip_runtime.h>
+#else
 #include <cuda_runtime.h>
+#endif
+
 #include <catboost/libs/helpers/exception.h>
 #include <catboost/libs/logging/logging.h>
 #include <library/cpp/cuda/exception/exception.h>
@@ -21,7 +26,6 @@ Y_DECLARE_PODTYPE(cudaDeviceProp);
 //cuda-types
 Y_DECLARE_PODTYPE(uint2);
 Y_DECLARE_PODTYPE(uint4);
-
 
 namespace NCudaLib {
     class TCudaStreamsProvider: public TNonCopyable {
@@ -121,6 +125,9 @@ namespace NCudaLib {
         cudaPointerAttributes attributes;
         CUDA_SAFE_CALL(cudaPointerGetAttributes(&attributes, (void*)(ptr)));
         //TODO(noxoomo): currently don't distinguish pinned/non-pinned memory
+#if defined(__HIP_PLATFORM_AMD__)
+	return attributes.type == cudaMemoryTypeHost ? EPtrType::CudaHost : EPtrType::CudaDevice;
+#else
 #ifndef CUDART_VERSION
 #error "CUDART_VERSION is not defined: include cuda_runtime_api.h"
 #elif (CUDART_VERSION >= 10000)
@@ -128,6 +135,7 @@ namespace NCudaLib {
 #else
         return attributes.memoryType == cudaMemoryTypeHost ? EPtrType::CudaHost : EPtrType::CudaDevice;
 #endif
+#endif //HIP endif
     }
 
     template <EPtrType From, EPtrType To>
@@ -249,6 +257,9 @@ namespace NCudaLib {
     inline int GetDeviceForPointer(const T* ptr) {
         cudaPointerAttributes result;
         CUDA_SAFE_CALL(cudaPointerGetAttributes(&result, (const void*)ptr));
+#if defined(__HIP_PLATFORM_AMD__)
+	CB_ENSURE(result.type == cudaMemoryTypeDevice, "Error: this pointer is not GPU pointer");
+#else
 #ifndef CUDART_VERSION
 #error "CUDART_VERSION is not defined: include cuda_runtime_api.h"
 #elif (CUDART_VERSION >= 10000)
@@ -256,6 +267,7 @@ namespace NCudaLib {
 #else
         CB_ENSURE(result.memoryType == cudaMemoryTypeDevice, "Error: this pointer is not GPU pointer");
 #endif
+#endif //HIP endif
         return result.device;
     }
 

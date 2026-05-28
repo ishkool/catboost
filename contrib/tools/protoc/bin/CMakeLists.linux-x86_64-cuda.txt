@@ -26,6 +26,10 @@ target_link_libraries(protoc PUBLIC
   build-cow-on
   library-cpp-cpuid_check
   contrib-libs-protoc
+  stdc++
+  gcc_s
+  c
+  pthread
 )
 
 target_allocator(protoc
@@ -39,9 +43,6 @@ target_link_options(protoc PRIVATE
   -Wl,--no-as-needed
   -fPIC
   -fPIC
-  -lpthread
-  -lrt
-  -ldl
 )
 
 target_sources(protoc PRIVATE
@@ -50,3 +51,4 @@ target_sources(protoc PRIVATE
 
 
 vcs_info(protoc)
+

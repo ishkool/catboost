@@ -17,6 +17,18 @@ add_subdirectory(bin)
 
 add_library(catboost-cuda-targets)
 
+if (HAVE_ROCM)
+  if(${CMAKE_VERSION} VERSION_LESS "3.17.0")
+      message(FATAL_ERROR "Build with HIP requires at least cmake 3.17.0")
+  endif()
+
+  enable_language(HIP)
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -D__HIP_PLATFORM_AMD__")
+
+
+  find_package(HIP REQUIRED)
+  target_include_directories(catboost-cuda-targets PRIVATE ${HIP_INCLUDE_DIRS})
+endif()
 
 target_link_libraries(catboost-cuda-targets PUBLIC
   contrib-libs-linux-headers
@@ -67,6 +79,9 @@ target_cuda_flags(catboost-cuda-targets
 add_global_library_for(catboost-cuda-targets.global
   catboost-cuda-targets)
 
+if(HAVE_ROCM)
+    target_include_directories(catboost-cuda-targets.global PRIVATE ${HIP_INCLUDE_DIRS})
+endif()
 
 target_link_libraries(catboost-cuda-targets.global PUBLIC
   contrib-libs-linux-headers

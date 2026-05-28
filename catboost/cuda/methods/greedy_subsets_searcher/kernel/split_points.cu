@@ -10,9 +10,14 @@
 #include <catboost/cuda/cuda_util/kernel/reorder_one_bit.cuh>
 #include <catboost/cuda/cuda_util/kernel/reorder_one_bit_impl.cuh>
 
+#if defined(__HIP_PLATFORM_AMD__)
+#include <hipcub/device/device_radix_sort.hpp>
+namespace cub = hipcub;
+#else
 #include <library/cpp/cuda/exception/exception.h>
 
 #include <cub/device/device_radix_sort.cuh>
+#endif
 
 namespace NKernel {
 
@@ -648,8 +653,8 @@ namespace NKernel {
         numBlocks.y  =  1;
         numBlocks.z  =  1;
         if (numBlocks.x) {
-            SplitAndMakeSequenceInSingleLeafImpl<N, blockSize> << < numBlocks, blockSize, 0, stream >>
-                > (compressedIndex, loadIndices, parts, leafId, splitFeature, splitBin, splitFlags, indices);
+            SplitAndMakeSequenceInSingleLeafImpl<N, blockSize><<<numBlocks, blockSize, 0, stream>>>
+                (compressedIndex, loadIndices, parts, leafId, splitFeature, splitBin, splitFlags, indices);
         }
     }
 
@@ -722,7 +727,7 @@ namespace NKernel {
                 const int blockSize = 512;
                 const int N = 1;
                 const int numBlocks = (part.Size + (N * blockSize) - 1) / (N * blockSize);
-                ReorderOneBitImpl<bool, ui32, N, blockSize> << < numBlocks, blockSize, 0, stream >> > (
+                ReorderOneBitImpl<bool, ui32, N, blockSize><<<numBlocks, blockSize, 0, stream>>>(
                     flagsSrc,
                         indicesSrc,
                         (int*) tempStorage,
@@ -830,5 +835,7 @@ namespace NKernel {
     INPLACE_SINGLE_LEAF(1024)
 
 }
+
+
 
 

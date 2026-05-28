@@ -10,8 +10,8 @@
 #include <util/generic/yexception.h>
 #include <util/stream/output.h>
 
-#include <cuda_runtime.h>
-
+// kernel.cuh already includes hip_runtime.h or cuda_runtime.h
+// so we don't need to include them again here
 
 class TCudaEvent;
 
@@ -159,3 +159,5 @@ template <class T>
 inline void ClearMemoryAsync(TArrayRef<T> data, TCudaStream stream) {
     CUDA_SAFE_CALL(cudaMemsetAsync(reinterpret_cast<char*>(data.data()), 0, data.size() * sizeof(T), stream.GetStream()));
 }
+
+

@@ -82,7 +82,8 @@ namespace {
                             featuresVec[i][featurePosition.Index] = rawFeatureAccessor.GetFloatAccessor()(featurePosition, i);
                         }
                     }
-                    featuresVecSecond[i] = MakeArrayRef(featuresVec[i].begin(), featuresVec[i].end());
+                    // Use .data() and .size() for C++20 compatibility
+                    featuresVecSecond[i] = MakeArrayRef(featuresVec[i].data(), featuresVec[i].size());
                 }
 
                 IQuantizedData* iQuantizedData = static_cast<IQuantizedData*>(ResultGpu.Get());
@@ -181,3 +182,4 @@ namespace NCB {
         );
     }
 }
+

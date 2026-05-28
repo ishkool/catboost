@@ -1585,7 +1585,12 @@ private:
 
     inline double NormalDensity(double x, double mean, double sigma) const {
         const long double z = Sqr((x - mean) / sigma);
+#if defined(__HIP_PLATFORM_AMD__)
+        // ROCm/HIP: std::expl is not exposed in clang's libc++ <cmath> on this platform.
+        return expl(-z / 2.0) * INV_SQRT_2PI / sigma;
+#else
         return std::expl(-z / 2.0) * INV_SQRT_2PI / sigma;
+#endif
     }
 
     inline double NormalDensityDiff(double x1, double x2, double mean, double sigma) const {
@@ -1709,3 +1714,4 @@ private:
     }
 
 };
+

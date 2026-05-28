@@ -1,7 +1,11 @@
 #include "pointwise_hist2.cuh"
 #include "split_properties_helpers.cuh"
 
+#if defined(__HIP_PLATFORM_AMD__)
+#include <hip/hip_cooperative_groups.h>
+#else
 #include <cooperative_groups.h>
+#endif
 #include <library/cpp/cuda/wrappers/arch.h>
 #include <catboost/cuda/cuda_util/kernel/instructions.cuh>
 #include <catboost/cuda/cuda_util/kernel/kernel_helpers.cuh>
@@ -30,7 +34,7 @@ namespace NKernel
 
         const ui32 blockSize = 256;
         const ui32 numBlocks = CeilDivide(size, blockSize);
-        UpdateBinsImpl << < numBlocks, blockSize, 0, stream >> > (dstBins, bins, docIndices, size, loadBit, foldBits);
+        UpdateBinsImpl<<<numBlocks, blockSize, 0, stream>>>(dstBins, bins, docIndices, size, loadBit, foldBits);
     }
 
 
@@ -120,12 +124,14 @@ namespace NKernel
         }
         const int scanOffset = fullPass ? 0 : ((partCount / 2) * histLineSize * histCount) * foldCount;
         if (histCount == 1) {
-            ScanHistogramsImpl<scanBlockSize, 1> << < scanBlocks, scanBlockSize, 0, stream >> > (features, featureCount, histLineSize, binSums + scanOffset);
+            ScanHistogramsImpl<scanBlockSize, 1><<<scanBlocks, scanBlockSize, 0, stream>>>(features, featureCount, histLineSize, binSums + scanOffset);
         } else if (histCount == 2) {
-            ScanHistogramsImpl<scanBlockSize, 2> << < scanBlocks, scanBlockSize, 0, stream >> >
+            ScanHistogramsImpl<scanBlockSize, 2><<<scanBlocks, scanBlockSize, 0, stream>>>
                                                                                     (features, featureCount, histLineSize, binSums + scanOffset);
         } else {
             CB_ENSURE_INTERNAL(false, "histCount should be 1 or 2, not " << histCount);
         }
     }
 }
+
+

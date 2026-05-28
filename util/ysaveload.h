@@ -98,14 +98,37 @@ static inline void SaveIterRange(IOutputStream* rh, It b, It e) {
 template <class It>
 static inline void LoadIterRange(IInputStream* rh, It b, It e) {
     while (b != e) {
+#if defined(__HIP_PLATFORM_AMD__)
+        // ROCm/HIP: vector<bool>::iterator dereferences to a proxy reference (_Bit_reference)
+        // that does not bind to T&; load into a real bool then assign.
+        if constexpr (std::is_same_v<typename std::iterator_traits<It>::value_type, bool>) {
+            bool temp;
+            ::Load(rh, temp);
+            *b++ = temp;
+        } else {
+            ::Load(rh, *b++);
+        }
+#else
         ::Load(rh, *b++);
+#endif
     }
 }
 
 template <class It, class TStorage>
 static inline void LoadIterRange(IInputStream* rh, It b, It e, TStorage& pool) {
     while (b != e) {
+#if defined(__HIP_PLATFORM_AMD__)
+        // ROCm/HIP: vector<bool>::iterator returns a proxy reference; route bool through temp.
+        if constexpr (std::is_same_v<typename std::iterator_traits<It>::value_type, bool>) {
+            bool temp;
+            ::Load(rh, temp, pool);
+            *b++ = temp;
+        } else {
+            ::Load(rh, *b++, pool);
+        }
+#else
         ::Load(rh, *b++, pool);
+#endif
     }
 }
 
@@ -778,3 +801,4 @@ inline void LoadMany(S* s, TNonVirtualSaver<T> t, R&... r) {
     const_cast<T*>(t.Data)->T::Load(s);
     ::LoadMany(s, r...);
 }
+

@@ -3,7 +3,11 @@
 
 #include "tuning_policy_enums.cuh"
 #include "compute_hist_loop_two_stats.cuh"
+#if defined(__HIP_PLATFORM_AMD__)
+#include <hip/hip_cooperative_groups.h>
+#else
 #include <cooperative_groups.h>
+#endif
 #include <library/cpp/cuda/wrappers/arch.h>
 #include <catboost/cuda/cuda_util/kernel/instructions.cuh>
 #include <catboost/cuda/cuda_util/kernel/kernel_helpers.cuh>
@@ -73,7 +77,7 @@ namespace NKernel
 
             #pragma unroll
             for (int k = 0; k < N; k += NN) {
-                impl->AddPointsImpl<NN>(ci + k, s1 + k, s2 + k);
+                impl->template AddPointsImpl<NN>(ci + k, s1 + k, s2 + k);
             }
         }
 
@@ -81,7 +85,7 @@ namespace NKernel
                                                  const float s1,
                                                  const float s2) {
             TImpl* impl = static_cast<TImpl*>(this);
-            impl->AddPointsImpl<1>(&ci, &s1, &s2);
+            impl->template AddPointsImpl<1>(&ci, &s1, &s2);
         }
 
         __forceinline__ __device__ void ReduceToOneWarp() {
@@ -437,3 +441,6 @@ namespace NKernel
     #undef DefineExternHist2Pass
 
 }
+
+
+

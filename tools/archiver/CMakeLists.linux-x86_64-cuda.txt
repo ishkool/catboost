@@ -24,6 +24,10 @@ target_link_libraries(archiver PUBLIC
   library-cpp-archive
   cpp-digest-md5
   cpp-getopt-small
+  stdc++
+  gcc_s
+  c
+  pthread
 )
 
 target_allocator(archiver
@@ -37,9 +41,6 @@ target_link_options(archiver PRIVATE
   -Wl,--no-as-needed
   -fPIC
   -fPIC
-  -lpthread
-  -lrt
-  -ldl
 )
 
 target_sources(archiver PRIVATE
@@ -48,3 +49,11 @@ target_sources(archiver PRIVATE
 
 
 vcs_info(archiver)
+
+
+
+
+
+
+
+

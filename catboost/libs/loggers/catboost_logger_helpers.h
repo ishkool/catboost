@@ -86,7 +86,7 @@ void AddFileLoggers(
 
 void AddConsoleLogger(
     const TString& learnToken,
-    const TVector<const TString>& testTokens,
+    const TVector<TString>& testTokens,
     bool hasTrain,
     int metricPeriod,
     int iterationsCount,
@@ -102,7 +102,7 @@ void Log(
     TMaybe<int> bestIteration,
     const TProfileResults& profileResults,
     const TString& learnToken,
-    const TVector<const TString>& testTokens,
+    const TVector<TString>& testTokens,
     bool outputMetrics,
     TLogger* logger
 );
@@ -120,7 +120,7 @@ NJson::TJsonValue GetJsonMeta(
 );
 
 TString GetTrainModelLearnToken();
-TVector<const TString> GetTrainModelTestTokens(int testCount);
+TVector<TString> GetTrainModelTestTokens(int testCount);
 TString GetParametersToken();
 
 
@@ -128,7 +128,7 @@ void InitializeFileLoggers(const NCatboostOptions::TCatBoostOptions& catboostOpt
                            const TOutputFiles& outputFiles,
                            const TVector<const IMetric*>& metrics,
                            const TString& learnToken,
-                           const TVector<const TString>& testTokens,
+                           const TVector<TString>& testTokens,
                            int metricPeriod,
                            TLogger* logger);
 
@@ -139,3 +139,4 @@ void InitializeFileLoggers(
     const TString& namesPrefix,
     bool isDetailedProfile,
     TLogger* logger);
+

@@ -22,15 +22,46 @@ get_built_tool_path(
 
 add_executable(catboost)
 
+if (HAVE_ROCM)
+    find_package(HIP REQUIRED)
+    target_compile_definitions(catboost PRIVATE __HIP_PLATFORM_AMD__)
+    target_include_directories(catboost PRIVATE ${HIP_INCLUDE_DIRS})
+    target_link_directories(catboost PRIVATE /opt/rocm/lib)
+    target_compile_options(catboost PRIVATE
+     -DHAVE_CUDA
+     -DHAVE_ROCM)
+
+
+else()
 
 target_compile_options(catboost PRIVATE
   -DHAVE_CUDA
 )
+endif()
+
+if (HAVE_ROCM)
+  # For ROCm builds: Use system C++ standard library
+  target_link_libraries(catboost PUBLIC
+    contrib-libs-linux-headers
+    yutil
+  )
+  # Add system standard libraries explicitly
+  target_link_options(catboost PRIVATE
+    -lstdc++
+    -lgcc_s
+    -lc
+    -lgcc
+  )
+else()
+  # For CUDA builds: Use libcxxsupp
+  target_link_libraries(catboost PUBLIC
+    contrib-libs-linux-headers
+    contrib-libs-cxxsupp
+    yutil
+  )
+endif()
 
 target_link_libraries(catboost PUBLIC
-  contrib-libs-linux-headers
-  contrib-libs-cxxsupp
-  yutil
   build-cow-on
   library-cpp-cpuid_check
   catboost-libs-data
@@ -57,6 +88,7 @@ target_link_libraries(catboost PUBLIC
   cpp-threading-local_executor
   tools-enum_parser-enum_serialization_runtime
   catboost-cuda-cuda_lib
+  hip::host
 )
 
 target_allocator(catboost
@@ -72,9 +104,6 @@ target_link_options(catboost PRIVATE
   -lpthread
   -lrt
   -ldl
-  -lcudadevrt
-  -lculibos
-  -lcudart_static
 )
 
 target_sources(catboost PRIVATE
@@ -107,3 +136,4 @@ generate_enum_serilization(catboost
 vcs_info(catboost)
 
 endif()
+

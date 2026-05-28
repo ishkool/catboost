@@ -30,7 +30,7 @@ target_link_libraries(library-cpp-neh PUBLIC
   contrib-libs-linux-headers
   contrib-libs-cxxsupp
   yutil
-  openssl::openssl
+  ${OPENSSL_CRYPTO_LIBRARY}
   cpp-containers-intrusive_rb_tree
   cpp-coroutine-engine
   cpp-coroutine-listener
@@ -45,6 +45,8 @@ target_link_libraries(library-cpp-neh PUBLIC
   cpp-threading-thread_local
   cpp-deprecated-atomic
   tools-enum_parser-enum_serialization_runtime
+  ssl
+  crypto
 )
 
 target_sources(library-cpp-neh PRIVATE

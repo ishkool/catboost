@@ -22,6 +22,7 @@
 #include <util/system/filemap.h>
 
 #include <string>
+#include <type_traits>
 
 #ifdef WIN32
 #include <crtdbg.h>
@@ -260,7 +261,21 @@ namespace {
         }
         void PackLeaf(char* buffer, const TVectorType& data, size_t computedSize) const {
             Y_ASSERT(computedSize == SizeOfValue && data.size() == ArraySize);
+#if defined(__HIP_PLATFORM_AMD__)
+            // ROCm/HIP: clang's libc++ specialises std::vector<bool> without .data(),
+            // so a memcpy of contiguous storage is not legal. Fall back to an
+            // element-by-element copy in that one case.
+            if constexpr (std::is_same_v<TVectorType, TVector<bool>>) {
+                typename TVectorType::value_type* dest = reinterpret_cast<typename TVectorType::value_type*>(buffer);
+                for (size_t i = 0; i < ArraySize; ++i) {
+                    dest[i] = data[i];
+                }
+            } else {
+                memcpy(buffer, data.data(), computedSize);
+            }
+#else
             memcpy(buffer, data.data(), computedSize);
+#endif
         }
         size_t MeasureLeaf(const TVectorType& data) const {
             Y_UNUSED(data);
@@ -471,3 +486,4 @@ try {
 int NTrieOps::MainCompile(const int argc, const char* argv[]) {
     return ::Main(argc, argv);
 }
+

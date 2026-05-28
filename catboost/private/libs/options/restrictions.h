@@ -56,4 +56,9 @@ constexpr ui32 GetMaxTreeCtrBinarizationForGpu() {
 
 //CPU restriction
 using TIndexType = ui32;
+#if defined(__HIP_PLATFORM_AMD__)
+// ROCm/HIP: raised from 128 to 512 to better utilize MI3xx host threads
+constexpr int CB_THREAD_LIMIT = 512;
+#else
 constexpr int CB_THREAD_LIMIT = 128;
+#endif

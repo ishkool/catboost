@@ -2,7 +2,11 @@
 #include "hist_2_one_byte_base.cuh"
 
 #include "tuning_policy_enums.cuh"
+#if defined(__HIP_PLATFORM_AMD__)
+#include <hip/hip_cooperative_groups.h>
+#else
 #include <cooperative_groups.h>
+#endif
 #include <library/cpp/cuda/wrappers/arch.h>
 #include <catboost/cuda/cuda_util/kernel/instructions.cuh>
 #include <catboost/cuda/cuda_util/kernel/kernel_helpers.cuh>

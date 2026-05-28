@@ -38,6 +38,11 @@ if (CMAKE_SYSTEM_PROCESSOR MATCHES "^(i686|x86_64|AMD64)$")
 
   set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${_ALL_X86_EXTENSIONS_DEFINES}")
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${_ALL_X86_EXTENSIONS_DEFINES}")
+
+  if(DEFINED ENV{ENABLE_CODE_COVERAGE})
+    string(APPEND CMAKE_C_FLAGS " -fprofile-instr-generate -fcoverage-mapping")
+    string(APPEND CMAKE_CXX_FLAGS " -fprofile-instr-generate -fcoverage-mapping")
+  endif()
 endif()
 
 message(VERBOSE "CMAKE_C_FLAGS = \"${CMAKE_C_FLAGS}\"")

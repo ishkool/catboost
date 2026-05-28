@@ -184,7 +184,12 @@ public:
 
     template <typename T>
     bool AlmostEqual(const TString& name, const TVector<T>& a, const TVector<T>& b) {
+#if defined(__HIP_PLATFORM_AMD__)
+        // ROCm: TConstArrayRef updated API - use data() and size() instead of iterators
+        return AlmostEqual(name, TConstArrayRef<T>(a.data(), a.size()), TConstArrayRef<T>(b.data(), b.size()));
+#else
         return AlmostEqual(name, TConstArrayRef<T>(a.begin(), a.end()), TConstArrayRef<T>(b.begin(), b.end()));
+#endif
     }
 
     bool AlmostEqualLeafValues(const TString& name, const TModelTrees& a, const TModelTrees& b) {
@@ -461,3 +466,5 @@ int main(int argc, char** argv) {
     Clog << "Maximum observed elementwise diff is " << withinEps.MaxObservedDiff << ", limit is " << diffLimit << Endl;
     return equal ? 0 : 1;
 }
+
+

@@ -44,11 +44,20 @@ static inline const TData* GetDataPtr(TConstArrayRef<TData> data, size_t offset 
 
 template <typename TData, typename TAlloc>
 static inline TData* GetDataPtr(TVector<TData, TAlloc>& data, size_t offset = 0) {
+#if defined(__HIP_PLATFORM_AMD__)
+    // ROCm/HIP: clang's libc++ does NOT make vector<bool> contiguous (proxy reference).
+    // Forbid the bool overload so callers route through dedicated copy paths.
+    static_assert(!std::is_same_v<TData, bool>, "GetDataPtr does not support vector<bool> - use direct indexing instead");
+#endif
     return GetDataPtr(TArrayRef<TData>(data), offset);
 }
 
 template <typename TData, typename TAlloc>
 static inline const TData* GetDataPtr(const TVector<TData, TAlloc>& data, size_t offset = 0) {
+#if defined(__HIP_PLATFORM_AMD__)
+    // ROCm/HIP: clang's libc++ does NOT make vector<bool> contiguous (proxy reference).
+    static_assert(!std::is_same_v<TData, bool>, "GetDataPtr does not support vector<bool> - use direct indexing instead");
+#endif
     return GetDataPtr(TConstArrayRef<TData>(data), offset);
 }
 
@@ -427,4 +436,5 @@ public:
 
     void Add(const TStats3D& stats3D);
 };
+
 

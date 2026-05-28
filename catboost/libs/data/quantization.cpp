@@ -63,8 +63,8 @@ namespace NCB {
             dstIndices.yresize(srcSubsetIndexing.Size());
             Iota(dstIndices.begin(), dstIndices.end(), ui32(0));
 
-            TDoubleArrayIterator<ui32, ui32> beginIter{srcIndices.begin(), dstIndices.begin()};
-            TDoubleArrayIterator<ui32, ui32> endIter{srcIndices.end(), dstIndices.end()};
+            TDoubleArrayIterator<ui32, ui32> beginIter{srcIndices.data(), dstIndices.data()};
+            TDoubleArrayIterator<ui32, ui32> endIter{srcIndices.data() + srcIndices.size(), dstIndices.data() + dstIndices.size()};
 
             Sort(beginIter, endIter, [](auto lhs, auto rhs) { return lhs.first < rhs.first; });
 
@@ -2732,3 +2732,4 @@ namespace NCB {
 
 
 }
+

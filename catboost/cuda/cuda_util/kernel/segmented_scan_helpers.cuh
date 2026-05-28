@@ -1,7 +1,13 @@
 #include "scan.cuh"
 #include "kernel_helpers.cuh"
 #include "index_wrapper.cuh"
+
+#if defined(__HIP_PLATFORM_AMD__)
+#include <hipcub/device/device_scan.hpp>
+namespace cub = hipcub;
+#else
 #include <cub/device/device_scan.cuh>
+#endif
 
 #include <type_traits>
 
@@ -430,3 +436,4 @@ namespace NKernel
         }
     };
 }
+

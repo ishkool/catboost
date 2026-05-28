@@ -3,10 +3,18 @@
 #include "kernel_helpers.cuh"
 #include <library/cpp/cuda/wrappers/arch.h>
 
+#if defined(__HIP_PLATFORM_AMD__)
+#include <hipcub/device/device_reduce.hpp>
+#include <hipcub/device/device_segmented_reduce.hpp>
+namespace cub = hipcub;
+#else
 #include <cub/device/device_reduce.cuh>
 #include <cub/device/device_segmented_reduce.cuh>
+#endif
 
+#if !defined(__HIP_PLATFORM_AMD__)
 #include <thrust/functional.h>
+#endif
 
 namespace NKernel {
 
@@ -137,7 +145,9 @@ namespace NKernel {
             case EOperatorType::Sum: {
                 return cub::DeviceReduce::Reduce(context.TempStorage, context.TempStorageSize,
                                                  input, output, size,
-#if defined(_LIBCUDACXX_CUDA_API_VERSION) && _LIBCUDACXX_CUDA_API_VERSION >= 2006000
+#if defined(__HIP_PLATFORM_AMD__)
+                                                 cub::Sum(),
+#elif defined(_LIBCUDACXX_CUDA_API_VERSION) && _LIBCUDACXX_CUDA_API_VERSION >= 2006000
                                                  cuda::std::plus<T>(),
 #else
                                                  thrust::plus<T>(),
@@ -148,7 +158,9 @@ namespace NKernel {
             case EOperatorType::Max: {
                 return cub::DeviceReduce::Reduce(context.TempStorage, context.TempStorageSize,
                                                  input, output, size,
-#if defined(_LIBCUDACXX_CUDA_API_VERSION) && _LIBCUDACXX_CUDA_API_VERSION >= 2008000
+#if defined(__HIP_PLATFORM_AMD__)
+                                                 cub::Max(),
+#elif defined(_LIBCUDACXX_CUDA_API_VERSION) && _LIBCUDACXX_CUDA_API_VERSION >= 2008000
                                                  cuda::maximum<T>(),
 #else
                                                  thrust::maximum<T>(),
@@ -159,7 +171,9 @@ namespace NKernel {
             case EOperatorType::Min: {
                 return cub::DeviceReduce::Reduce(context.TempStorage, context.TempStorageSize,
                                                  input, output, size,
-#if defined(_LIBCUDACXX_CUDA_API_VERSION) && _LIBCUDACXX_CUDA_API_VERSION >= 2008000
+#if defined(__HIP_PLATFORM_AMD__)
+                                                 cub::Min(),
+#elif defined(_LIBCUDACXX_CUDA_API_VERSION) && _LIBCUDACXX_CUDA_API_VERSION >= 2008000
                                                  cuda::minimum<T>(),
 #else
                                                  thrust::minimum<T>(),
@@ -195,7 +209,9 @@ namespace NKernel {
                                                      keys, outKeys,
                                                      input, output,
                                                      outputSize,
-#if defined(_LIBCUDACXX_CUDA_API_VERSION) && _LIBCUDACXX_CUDA_API_VERSION >= 2006000
+#if defined(__HIP_PLATFORM_AMD__)
+                                                     cub::Sum(),
+#elif defined(_LIBCUDACXX_CUDA_API_VERSION) && _LIBCUDACXX_CUDA_API_VERSION >= 2006000
                                                      cuda::std::plus<T>(),
 #else
                                                      thrust::plus<T>(),
@@ -208,7 +224,9 @@ namespace NKernel {
                                                       keys, outKeys,
                                                       input, output,
                                                       outputSize,
-#if defined(_LIBCUDACXX_CUDA_API_VERSION) && _LIBCUDACXX_CUDA_API_VERSION >= 2008000
+#if defined(__HIP_PLATFORM_AMD__)
+                                                      cub::Max(),
+#elif defined(_LIBCUDACXX_CUDA_API_VERSION) && _LIBCUDACXX_CUDA_API_VERSION >= 2008000
                                                       cuda::maximum<T>(),
 #else
                                                       thrust::maximum<T>(),
@@ -221,7 +239,9 @@ namespace NKernel {
                                                       keys, outKeys,
                                                       input, output,
                                                       outputSize,
-#if defined(_LIBCUDACXX_CUDA_API_VERSION) && _LIBCUDACXX_CUDA_API_VERSION >= 2008000
+#if defined(__HIP_PLATFORM_AMD__)
+                                                      cub::Min(),
+#elif defined(_LIBCUDACXX_CUDA_API_VERSION) && _LIBCUDACXX_CUDA_API_VERSION >= 2008000
                                                       cuda::minimum<T>(),
 #else
                                                       thrust::minimum<T>(),
@@ -273,8 +293,9 @@ namespace NKernel {
                         const ui32 blockSize = 256;
                         const ui32 segmentsPerBlock = blockSize / lineSize;
                         const ui32 numBlocks = CeilDivide(numSegments, segmentsPerBlock);
+                        const ui32 gridSize = min(numBlocks, (ui32)TArchProps::MaxBlockCount());
 
-                        SegmentedReduceWarpPartPerSegmentImpl<T, blockSize, lineSize> << < min(numBlocks, (ui32)TArchProps::MaxBlockCount()), blockSize, 0, stream >> >
+                        SegmentedReduceWarpPartPerSegmentImpl<T, blockSize, lineSize><<<gridSize, blockSize, 0, stream>>>
                                 (input, beginOffsets, endOffsets, numSegments, output, numBlocks);
 
                     } else if (meanSize <= 4) {
@@ -282,7 +303,8 @@ namespace NKernel {
                         const ui32 blockSize = 256;
                         const ui32 segmentsPerBlock = blockSize / lineSize;
                         const ui32 numBlocks = CeilDivide(numSegments, segmentsPerBlock);
-                        SegmentedReduceWarpPartPerSegmentImpl<T, blockSize, lineSize> << < min(numBlocks, (ui32)TArchProps::MaxBlockCount()), blockSize, 0, stream >> >
+                        const ui32 gridSize = min(numBlocks, (ui32)TArchProps::MaxBlockCount());
+                        SegmentedReduceWarpPartPerSegmentImpl<T, blockSize, lineSize><<<gridSize, blockSize, 0, stream>>>
                                 (input, beginOffsets, endOffsets, numSegments, output, numBlocks);
 
                     } else if (meanSize <= 8) {
@@ -290,7 +312,8 @@ namespace NKernel {
                         const ui32 blockSize = 256;
                         const ui32 segmentsPerBlock = blockSize / lineSize;
                         const ui32 numBlocks = CeilDivide(numSegments, segmentsPerBlock);
-                        SegmentedReduceWarpPartPerSegmentImpl<T, blockSize, lineSize> << < min(numBlocks, (ui32)TArchProps::MaxBlockCount()), blockSize, 0, stream >> >
+                        const ui32 gridSize = min(numBlocks, (ui32)TArchProps::MaxBlockCount());
+                        SegmentedReduceWarpPartPerSegmentImpl<T, blockSize, lineSize><<<gridSize, blockSize, 0, stream>>>
                                 (input, beginOffsets, endOffsets, numSegments, output, numBlocks);
 
                     } else if (meanSize <= 16) {
@@ -298,18 +321,21 @@ namespace NKernel {
                         const ui32 blockSize = 256;
                         const ui32 segmentsPerBlock = blockSize / lineSize;
                         const ui32 numBlocks = CeilDivide(numSegments, segmentsPerBlock);
-                        SegmentedReduceWarpPartPerSegmentImpl<T, blockSize, lineSize> << < min(numBlocks, (ui32)TArchProps::MaxBlockCount()), blockSize, 0, stream >> >
+                        const ui32 gridSize = min(numBlocks, (ui32)TArchProps::MaxBlockCount());
+                        SegmentedReduceWarpPartPerSegmentImpl<T, blockSize, lineSize><<<gridSize, blockSize, 0, stream>>>
                                 (input, beginOffsets, endOffsets, numSegments, output, numBlocks);
                     } else if (meanSize <= 256) {
                         const ui32 lineSize = 32;
                         const ui32 blockSize = 256;
                         const ui32 segmentsPerBlock = blockSize / lineSize;
                         const ui32 numBlocks = CeilDivide(numSegments, segmentsPerBlock);
-                        SegmentedReduceWarpPartPerSegmentImpl<T, blockSize, lineSize> << < min(numBlocks, (ui32)TArchProps::MaxBlockCount()), blockSize, 0, stream >> >(input, beginOffsets, endOffsets, numSegments, output, numBlocks);
+                        const ui32 gridSize = min(numBlocks, (ui32)TArchProps::MaxBlockCount());
+                        SegmentedReduceWarpPartPerSegmentImpl<T, blockSize, lineSize><<<gridSize, blockSize, 0, stream>>>(input, beginOffsets, endOffsets, numSegments, output, numBlocks);
                     } else {
                         const ui32 blockSize = 512;
                         const ui32 numBlocks = numSegments;
-                        SegmentedReduceBlockPerSegmentImpl<T, blockSize> << < min(numBlocks, (ui32)TArchProps::MaxBlockCount()), blockSize, 0, stream >> >(input, beginOffsets, endOffsets, numSegments, output, numBlocks);
+                        const ui32 gridSize = min(numBlocks, (ui32)TArchProps::MaxBlockCount());
+                        SegmentedReduceBlockPerSegmentImpl<T, blockSize><<<gridSize, blockSize, 0, stream>>>(input, beginOffsets, endOffsets, numSegments, output, numBlocks);
                     }
                     return cudaSuccess;
                 }
@@ -324,7 +350,9 @@ namespace NKernel {
                     return cub::DeviceSegmentedReduce::Reduce(context.TempStorage, context.TempStorageSize,
                                                               input, output, numSegments,
                                                               beginOffsets, endOffsets,
-#if defined(_LIBCUDACXX_CUDA_API_VERSION) && _LIBCUDACXX_CUDA_API_VERSION >= 2006000
+#if defined(__HIP_PLATFORM_AMD__)
+                                                              cub::Sum(),
+#elif defined(_LIBCUDACXX_CUDA_API_VERSION) && _LIBCUDACXX_CUDA_API_VERSION >= 2006000
                                                               cuda::std::plus<T>(),
 #else
                                                               thrust::plus<T>(),
@@ -337,7 +365,9 @@ namespace NKernel {
                                                               input, output,
                                                               numSegments,
                                                               beginOffsets, endOffsets,
-#if defined(_LIBCUDACXX_CUDA_API_VERSION) && _LIBCUDACXX_CUDA_API_VERSION >= 2008000
+#if defined(__HIP_PLATFORM_AMD__)
+                                                              cub::Max(),
+#elif defined(_LIBCUDACXX_CUDA_API_VERSION) && _LIBCUDACXX_CUDA_API_VERSION >= 2008000
                                                               cuda::maximum<T>(),
 #else
                                                               thrust::maximum<T>(),
@@ -350,7 +380,9 @@ namespace NKernel {
                                                               input, output,
                                                               numSegments,
                                                               beginOffsets, endOffsets,
-#if defined(_LIBCUDACXX_CUDA_API_VERSION) && _LIBCUDACXX_CUDA_API_VERSION >= 2008000
+#if defined(__HIP_PLATFORM_AMD__)
+                                                              cub::Min(),
+#elif defined(_LIBCUDACXX_CUDA_API_VERSION) && _LIBCUDACXX_CUDA_API_VERSION >= 2008000
                                                               cuda::minimum<T>(),
 #else
                                                               thrust::minimum<T>(),
@@ -395,3 +427,4 @@ namespace NKernel {
                                                    TCudaStream stream);
 
 }
+

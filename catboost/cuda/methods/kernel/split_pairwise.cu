@@ -1,6 +1,10 @@
 #include "split_pairwise.cuh"
 #include "split_properties_helpers.cuh"
+#if defined(__HIP_PLATFORM_AMD__)
+#include <hip/hip_cooperative_groups.h>
+#else
 #include <cooperative_groups.h>
+#endif
 #include <library/cpp/cuda/wrappers/arch.h>
 #include <catboost/cuda/cuda_util/kernel/instructions.cuh>
 #include <catboost/cuda/cuda_util/kernel/kernel_helpers.cuh>
@@ -137,7 +141,7 @@ namespace NKernel {
         if (matricesCount > 0) {
             const int numBlocks = (((size_t) matricesCount) * min(partCount, 32) + BLOCK_SIZE - 1) / BLOCK_SIZE;
             #define RUN(PartCount)\
-            MakePairwiseDerivatives<BLOCK_SIZE, PartCount> << < numBlocks, BLOCK_SIZE, 0, stream >> > (histogram,  firstMatrix, matricesCount, histLineSize, linearSystem);
+            MakePairwiseDerivatives<BLOCK_SIZE, PartCount><<<numBlocks, BLOCK_SIZE, 0, stream>>>(histogram,  firstMatrix, matricesCount, histLineSize, linearSystem);
 
             if (partCount == 1) {
                 RUN(1)
@@ -219,7 +223,7 @@ namespace NKernel {
             const ui32 pointwiseHistSize = binFeatureCount * (hasPointwiseWeights ? 2 : 1);
             const int lineSize = min(32, rowSize);
             const int numBlocks = (((size_t) matricesCount) * lineSize + BLOCK_SIZE - 1) / BLOCK_SIZE;
-            MakePointwiseDerivatives<BLOCK_SIZE> << < numBlocks, BLOCK_SIZE, 0, stream >> > (pointwiseHist, pointwiseHistSize, partStats, hasPointwiseWeights, rowSize, firstMatrixIdx, matricesCount,  linearSystem);
+            MakePointwiseDerivatives<BLOCK_SIZE><<<numBlocks, BLOCK_SIZE, 0, stream>>>(pointwiseHist, pointwiseHistSize, partStats, hasPointwiseWeights, rowSize, firstMatrixIdx, matricesCount,  linearSystem);
         }
     }
 
@@ -459,3 +463,5 @@ namespace NKernel {
 
 
 }
+
+

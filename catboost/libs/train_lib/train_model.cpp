@@ -229,7 +229,7 @@ static void InitializeAndCheckMetricData(
 namespace {
 struct TLoggingData {
     TString LearnToken;
-    TVector<const TString> TestTokens;
+    TVector<TString> TestTokens;
     TLogger Logger;
 };
 }
@@ -1655,3 +1655,4 @@ void TrainModel(
         dstLearnProgress,
         localExecutorHolder.Get());
 }
+

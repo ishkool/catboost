@@ -126,7 +126,7 @@ namespace NKernel {
                 pairs += stripeSize;
                 weight += stripeSize;
 
-                hist.AddPairs<N>(localBins1, localBins2, localWeights);
+                hist.template AddPairs<N>(localBins1, localBins2, localWeights);
             }
         }
 
@@ -307,3 +307,4 @@ namespace NKernel {
 
 
 }
+

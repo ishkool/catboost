@@ -16,6 +16,18 @@ add_subdirectory(ut)
 
 add_library(catboost-cuda-train_lib INTERFACE)
 
+if (HAVE_ROCM)
+  if(${CMAKE_VERSION} VERSION_LESS "3.17.0")
+      message(FATAL_ERROR "Build with HIP requires at least cmake 3.17.0")
+  endif()
+
+  enable_language(HIP)
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -D__HIP_PLATFORM_AMD__")
+
+
+  find_package(HIP REQUIRED)
+#  target_include_directories(catboost-cuda-cuda_lib PRIVATE ${HIP_INCLUDE_DIRS})
+endif()
 
 target_link_libraries(catboost-cuda-train_lib INTERFACE
   contrib-libs-linux-headers
@@ -51,6 +63,10 @@ target_link_libraries(catboost-cuda-train_lib INTERFACE
 add_global_library_for(catboost-cuda-train_lib.global
   catboost-cuda-train_lib)
 
+if (HAVE_ROCM)
+    find_package(HIP REQUIRED)
+    target_include_directories(catboost-cuda-train_lib.global PRIVATE ${HIP_INCLUDE_DIRS})
+endif()
 
 target_link_libraries(catboost-cuda-train_lib.global PUBLIC
   contrib-libs-linux-headers

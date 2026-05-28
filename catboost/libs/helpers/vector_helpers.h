@@ -125,7 +125,7 @@ template <typename T, typename T2DArrayLike>
 inline static TVector<TConstArrayRef<T>> To2DConstArrayRef(const T2DArrayLike& array, size_t offset, size_t count) {
     auto arrayView = TVector<TConstArrayRef<T>>();
     for (const auto& subArray : array) {
-        arrayView.emplace_back(MakeArrayRef(subArray.begin() + offset, count));
+        arrayView.emplace_back(MakeArrayRef(subArray.data() + offset, count));
     }
     return arrayView;
 }
@@ -217,3 +217,4 @@ TVector<size_t> GetNonEmptyElementsIndices(const TVector<TVector<T>>& data) {
     }
     return result;
 }
+

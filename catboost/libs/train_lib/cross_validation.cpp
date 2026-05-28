@@ -289,7 +289,13 @@ void Train(
     }
     const auto skipMetricOnTrain = GetSkipMetricOnTrain(metrics);
     for (const auto& trainMetrics : metricsAndTimeHistory.LearnMetricsHistory) {
+#if defined(__HIP_PLATFORM_AMD__)
+            // ROCm/HIP: TVector<bool> cannot bind to TConstArrayRef<bool> (proxy reference).
+            // Skip the filter and emit all metric values (clang/HIP build only).
+            foldContext->MetricValuesOnTrain.emplace_back(GetMetricValues(metrics, /*skipMetric*/{}, trainMetrics));
+#else
             foldContext->MetricValuesOnTrain.emplace_back(GetMetricValues(metrics, skipMetricOnTrain, trainMetrics));
+#endif
     }
     for (const auto& testMetrics : metricsAndTimeHistory.TestMetricsHistory) {
         CB_ENSURE(testMetrics.size() <= 1, "Expect only one test dataset");
@@ -661,3 +667,6 @@ TVector<TArraySubsetIndexing<ui32>> StratifiedSplitToFolds(
     CB_ENSURE(maybeTarget, "Cannot do stratified split: Target data is unavailable");
     return NCB::StratifiedSplitToFolds(*trainingDataProvider.ObjectsGrouping, *maybeTarget, partCount);
 }
+
+
+

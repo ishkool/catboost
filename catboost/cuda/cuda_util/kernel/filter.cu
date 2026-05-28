@@ -28,7 +28,7 @@ namespace NKernel {
         if (size > 0) {
             const ui32 blockSize = 512;
             const ui32 numBlocks = SafeIntegerCast<ui32>((size + blockSize - 1) / (blockSize));
-            FilterImpl << <numBlocks, blockSize, 0, stream>>>(weights, size, result);
+            FilterImpl<<<numBlocks, blockSize, 0, stream>>>(weights, size, result);
         }
     }
 
@@ -38,3 +38,4 @@ namespace NKernel {
     template
     void Filter<ui64>(const float* weights, const ui64 size, ui64* result, TCudaStream stream);
 }
+

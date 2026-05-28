@@ -28,6 +28,14 @@
 #include <future>
 #include <type_traits>
 
+// HIP/clang libc++ cannot bind Cython to TVector<bool> (vector<bool> proxy refs).
+// CUDA keeps the upstream bool mask element type.
+#if defined(__HIP_PLATFORM_AMD__)
+using TFeatureMaskElem = ui8;
+#else
+using TFeatureMaskElem = bool;
+#endif
+
 
 struct TTrainTestSplitParams;
 
@@ -210,7 +218,7 @@ void AsyncSetDataFromCythonMemoryViewCOrder(
     size_t elementStride,   // dim 1
     bool hasSeparateEmbeddingFeaturesData,
     TConstArrayRef<ui32> mainDataFeatureIdxToDstFeatureIdx,
-    TConstArrayRef<bool> isCatFeature,  // can be empty, it means no categorical data
+    TConstArrayRef<TFeatureMaskElem> isCatFeature,  // can be empty, it means no categorical data
     NCB::IRawObjectsOrderDataVisitor* builderVisitor,
     NPar::ILocalExecutor* localExecutor,
     std::future<void>* result
@@ -291,7 +299,7 @@ void SetDataFromScipyCsrSparse(
     TConstArrayRef<ui32> indices,
     bool hasSeparateEmbeddingFeaturesData,
     TConstArrayRef<ui32> mainDataFeatureIdxToDstFeatureIdx,
-    TConstArrayRef<bool> isCatFeature,
+    TConstArrayRef<TFeatureMaskElem> isCatFeature,
     NCB::IRawObjectsOrderDataVisitor* builderVisitor,
     NPar::ILocalExecutor* localExecutor
 ) {
@@ -385,3 +393,4 @@ void GetNumFeatureValuesSample(
 
 
 TMetricsAndTimeLeftHistory GetTrainingMetrics(const TFullModel& model);
+

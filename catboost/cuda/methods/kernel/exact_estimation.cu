@@ -114,7 +114,7 @@ namespace NKernel {
         const ui32 blocksNum = binCount;
         const ui32 elementsPerThreads = CeilDivide(objectsCount, blockSize * blocksNum);
 
-        ComputeNeedWeightsImpl<blockSize> << < blocksNum, blockSize, 0, stream >> > (targets,
+        ComputeNeedWeightsImpl<blockSize><<<blocksNum, blockSize, 0, stream>>>(targets,
                                                                                      weights,
                                                                                      beginOffsets,
                                                                                      endOffsets,
@@ -131,7 +131,7 @@ namespace NKernel {
         const ui32 blockSize = 512;
         const ui32 blocksNum = CeilDivide(objectsCount, blockSize);
 
-        ComputeWeightsWithTargetsImpl << < blocksNum, blockSize, 0, stream >> > (targets,
+        ComputeWeightsWithTargetsImpl<<<blocksNum, blockSize, 0, stream>>>(targets,
                                                                                  weights,
                                                                                  weightsWithTargets,
                                                                                  objectsCount);
@@ -151,7 +151,7 @@ namespace NKernel {
         const ui32 blockSize = 256;
         const ui32 blocksNum = CeilDivide(binCount, blockSize);
 
-        ComputeWeightedQuantileWithBinarySearchImpl<blockSize> << < blocksNum, blockSize, 0, stream >> > (targets,
+        ComputeWeightedQuantileWithBinarySearchImpl<blockSize><<<blocksNum, blockSize, 0, stream>>>(targets,
                                                                                                           weightsPrefixSum,
                                                                                                           objectsCount,
                                                                                                           needWeights,
@@ -170,8 +170,9 @@ namespace NKernel {
         const ui32 blockSize = 128;
         const ui32 blocksNum = binCount;
 
-        MakeEndOfBinsFlagsImpl << < blocksNum, blockSize, 0, stream >> > (beginOffsets,
+        MakeEndOfBinsFlagsImpl<<<blocksNum, blockSize, 0, stream>>>(beginOffsets,
                                                                           endOffsets,
                                                                           flags);
     }
 }
+

@@ -21,16 +21,17 @@ namespace NHnsw {
         TVector<ui32> numNeighborsInLevels;
         TVector<ui32> numItemsInLevels;
         {
-            const ui32* data = index.FlatLevels.begin();
+            const ui32* data = index.FlatLevels.data();
+            const ui32* dataEnd = index.FlatLevels.data() + index.FlatLevels.size();
             for (i64 numItems = index.NumItems; numItems > 1; numItems /= index.LevelSizeDecay) {
-                Y_ENSURE(data < index.FlatLevels.end());
+                Y_ENSURE(data < dataEnd);
                 levels.push_back(data);
                 numNeighborsInLevels.push_back(Min<i64>(index.MaxNeighbors, numItems - 1));
                 numItemsInLevels.push_back(numItems);
                 data += numItems * numNeighborsInLevels.back();
             }
 
-            Y_ENSURE(data == index.FlatLevels.end());
+            Y_ENSURE(data == dataEnd);
         }
 
         for (auto levelNum : xrange<i64>(levels.size() - 1, -1, -1)) {
@@ -64,3 +65,4 @@ namespace NHnsw {
     }
 
 }
+

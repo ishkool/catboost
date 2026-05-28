@@ -29,6 +29,8 @@ target_link_libraries(flatc PUBLIC
   contrib-libs-linux-headers
   contrib-libs-cxxsupp
   build-cow-on
+  m
+  c++abi
 )
 
 target_allocator(flatc

@@ -1,5 +1,9 @@
 #include "pointwise_hist2_one_byte_templ.cuh"
+#if defined(__HIP_PLATFORM_AMD__)
+#include <hip/hip_cooperative_groups.h>
+#else
 #include <cooperative_groups.h>
+#endif
 #include <catboost/cuda/cuda_util/kernel/instructions.cuh>
 #include <catboost/cuda/cuda_util/kernel/kernel_helpers.cuh>
 #include <library/cpp/cuda/wrappers/arch.h>
@@ -212,3 +216,4 @@ namespace NKernel
 
     DEFINE_NON_BINARY(8)
 }
+

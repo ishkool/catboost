@@ -17,8 +17,13 @@
 extern "C" {
 #endif
 
+// For ROCm builds, the system already provides reallocarray with proper exception specs
+// For other builds, provide the declaration
+#if !defined(__HIP_PLATFORM_AMD__)
 void* reallocarray(void*, size_t, size_t);
+#endif
 
 #ifdef __cplusplus
 } // extern "C"
 #endif
+

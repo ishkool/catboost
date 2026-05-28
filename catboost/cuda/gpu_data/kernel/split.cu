@@ -145,7 +145,7 @@ namespace NKernel {
         const int numBlocks = CeilDivide(size, TCompressionHelper<ui64, blockSize>(1).KeysPerBlock());
 
         if (numBlocks) {
-            WriteCompressedSplitImpl<blockSize> << < numBlocks, blockSize, 0, stream >> >(feature, binIdx, compressedIndex,
+            WriteCompressedSplitImpl<blockSize><<<numBlocks, blockSize, 0, stream>>>(feature, binIdx, compressedIndex,
                     indices, size, compressedBits);
         }
     }
@@ -158,7 +158,7 @@ namespace NKernel {
         const int numBlocks = CeilDivide(size, TCompressionHelper<ui64, blockSize>(1).KeysPerBlock());
 
         if (numBlocks) {
-            WriteCompressedSplitFloatImpl<blockSize> << < numBlocks, blockSize, 0, stream >> >(values, border, indices, size, compressedBits);
+            WriteCompressedSplitFloatImpl<blockSize><<<numBlocks, blockSize, 0, stream>>>(values, border, indices, size, compressedBits);
         }
     }
 
@@ -171,7 +171,7 @@ namespace NKernel {
         const int numBlocks = CeilDivide(size, TCompressionHelper<ui64, blockSize>(1).KeysPerBlock());
 
         if (numBlocks) {
-            UpdateBinsImpl<blockSize> << < numBlocks, blockSize, 0, stream >> >(compressedBits, depth, bins, size);
+            UpdateBinsImpl<blockSize><<<numBlocks, blockSize, 0, stream>>>(compressedBits, depth, bins, size);
         }
     }
 
@@ -213,8 +213,9 @@ namespace NKernel {
         const int numBlocks = min(CeilDivide(size, blockSize), TArchProps::MaxBlockCount());
 
         if (numBlocks) {
-            UpdateBinsFromCompressedIndexImpl << < numBlocks, blockSize, 0, stream >> >(compressedIndex, indices, size, feature, binIdx, depth, bins);
+            UpdateBinsFromCompressedIndexImpl<<<numBlocks, blockSize, 0, stream>>>(compressedIndex, indices, size, feature, binIdx, depth, bins);
         }
     }
 
 }
+

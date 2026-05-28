@@ -318,6 +318,20 @@ namespace NPar {
                 memset(&(*res)[0], 0, sizeof(T) * res->size());
             }
 
+#if defined(__HIP_PLATFORM_AMD__)
+            // ROCm/HIP only: clang's libc++ vector<bool> has no .data()/memset path,
+            // so the generic ClearPodArray (memset) does not match. Provide an
+            // indexed-fill overload for the bool specialization.
+            void ClearPodArray(TVector<bool>* res, ssize_t size) {
+                res->yresize(size);
+                if (res->empty())
+                    return;
+                for (ssize_t i = 0; i < size; ++i) {
+                    (*res)[i] = false;
+                }
+            }
+#endif
+
             void ResetHostIdReady(int hostId, int partCount) {
                 IsFullyDistributed[hostId] = false;
                 const TVector<int>& compList = HostId2Computer[hostId];
@@ -392,3 +406,4 @@ namespace NPar {
         }
     };
 }
+

@@ -485,9 +485,16 @@ namespace NStatistics {
         double res = 0;
         for (pIt = pBegin, qIt = qBegin; pIt != pEnd; ++pIt, ++qIt) {
             delta += *pIt / pDenominator - *qIt / qDenominator;
+#if defined(__HIP_PLATFORM_AMD__)
+            // ROCm/HIP: clang resolves `abs(double)` to <cstdlib>'s integer abs(int).
+            // Use fabs() to keep a double-typed magnitude.
+            res = std::max(res, fabs(delta));
+#else
             res = std::max(res, abs(delta));
+#endif
         }
         return res;
     }
 
 }
+

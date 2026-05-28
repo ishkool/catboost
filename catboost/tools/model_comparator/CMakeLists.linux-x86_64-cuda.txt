@@ -35,6 +35,16 @@ target_link_libraries(model_comparator PUBLIC
   cpp-string_utils-ztstrbuf
 )
 
+# ROCm/Clang needs explicit C++ standard library and runtime linking
+if(HAVE_ROCM OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+  target_link_libraries(model_comparator PUBLIC
+    stdc++
+    c++abi
+    unwind
+    gcc_s
+  )
+endif()
+
 target_allocator(model_comparator
   cpp-malloc-tcmalloc
   libs-tcmalloc-no_percpu_cache
@@ -60,3 +70,4 @@ target_sources(model_comparator PRIVATE
 
 
 vcs_info(model_comparator)
+

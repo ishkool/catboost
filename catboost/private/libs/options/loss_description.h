@@ -29,7 +29,12 @@ public:
     bool operator!=(const TLossParams& that) const;
 
     void Put(const TString& key, const TString& value) {
+#if defined(__HIP_PLATFORM_AMD__)
+        // ROCm/HIP: avoid C++20 .contains() (missing in some libc++ configs)
+        auto containedBefore = ParamsMap.count(key) > 0;
+#else
         auto containedBefore = ParamsMap.contains(key);
+#endif
         ParamsMap[key] = value;
         if (!containedBefore) {
             UserSpecifiedKeyOrder.push_back(key);
@@ -94,7 +99,12 @@ namespace NCatboostOptions {
 
     template <typename T>
     T GetParamOrDefault(const TMap<TString, TString>& lossParams, const TString& paramName, T defaultValue) {
+#if defined(__HIP_PLATFORM_AMD__)
+        // ROCm/HIP: avoid C++20 .contains() (missing in some libc++ configs)
+        if (lossParams.count(paramName) > 0) {
+#else
         if (lossParams.contains(paramName)) {
+#endif
             return FromString<T>(lossParams.at(paramName));
         }
         return defaultValue;
@@ -180,7 +190,12 @@ void IterateOverCombination(const TMap<TString, TString>& params, const TCallabl
     for (ui32 idx : xrange(lossCount)) {
         const auto& lossKey = GetCombinationLossKey(idx);
         const auto& weightKey = GetCombinationWeightKey(idx);
+#if defined(__HIP_PLATFORM_AMD__)
+        // ROCm/HIP: avoid C++20 .contains() (missing in some libc++ configs)
+        CB_ENSURE(params.count(lossKey) > 0 && params.count(weightKey) > 0, "Mandatory parameter " << lossKey << " or " << weightKey << " is missing");
+#else
         CB_ENSURE(params.contains(lossKey) && params.contains(weightKey), "Mandatory parameter " << lossKey << " or " << weightKey << " is missing");
+#endif
         float weight;
         CB_ENSURE(TryFromString<float>(params.at(weightKey), weight), "Value of " << weightKey << " must be floating point number, not " << params.at(weightKey));
         if (weight == 0.0f) {
@@ -191,3 +206,4 @@ void IterateOverCombination(const TMap<TString, TString>& params, const TCallabl
         callable(loss, weight);
     }
 }
+

@@ -9,6 +9,7 @@
 
 #include <limits>
 #include <string>
+#include <variant>
 
 struct TPair;
 
@@ -55,3 +56,4 @@ namespace NCB {
 
     TVector<NCB::EFloatGraphFeatureType> GetAggregationTypeNames(EFeatureType featureType);
 }
+

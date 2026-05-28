@@ -11,7 +11,11 @@
 #include <util/string/hex.h>
 #include <util/str_stl.h>
 
+#if defined(__HIP_PLATFORM_AMD__)
+#include <array>  // ROCm/HIP: use system libc++ <array>
+#else
 #include <array>
+#endif
 
 namespace NCB {
 
@@ -111,4 +115,5 @@ inline NCB::TGuid GuidFromFbs(const NCatBoostFbs::TGuid* fbsGuid) {
 inline NCatBoostFbs::TGuid CreateFbsGuid(const NCB::TGuid& guid) {
     return NCatBoostFbs::TGuid(guid.dw[0], guid.dw[1], guid.dw[2], guid.dw[3]);
 }
+
 

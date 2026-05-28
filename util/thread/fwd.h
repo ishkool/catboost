@@ -1,6 +1,10 @@
 #pragma once
 
+#include <functional>
+
+#if !defined(__HIP_PLATFORM_AMD__)
 #include <stlfwd>
+#endif
 
 struct TDefaultLFCounter;
 
@@ -28,3 +32,5 @@ class TSimpleThreadPool;
 
 template <class TQueueType, class TSlave>
 class TThreadPoolBinder;
+
+

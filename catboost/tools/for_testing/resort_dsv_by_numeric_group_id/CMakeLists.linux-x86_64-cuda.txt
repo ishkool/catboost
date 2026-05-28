@@ -24,6 +24,16 @@ target_link_libraries(resort_dsv_by_numeric_group_id PUBLIC
   private-libs-data_types
 )
 
+# ROCm/Clang needs explicit C++ standard library and runtime linking
+if(HAVE_ROCM OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+  target_link_libraries(resort_dsv_by_numeric_group_id PUBLIC
+    stdc++
+    c++abi
+    unwind
+    gcc_s
+  )
+endif()
+
 target_allocator(resort_dsv_by_numeric_group_id
   cpp-malloc-tcmalloc
   libs-tcmalloc-no_percpu_cache

@@ -57,8 +57,9 @@ namespace NKernel {
         constexpr ui32 compressedBlockSize = CompressCudaBlockSize();
         const ui32 blockSize = 256;
         const ui32 numBlocks = CeilDivide(size, blockSize);
+        const ui32 gridSize = min(TArchProps::MaxBlockCount(), numBlocks);
 
-        GatherFromCompressedImpl<TStorageType, compressedBlockSize> << < min(TArchProps::MaxBlockCount(), numBlocks), blockSize, 0, stream >> >(src, map, mapMask, dst, size, bitsPerKey);
+        GatherFromCompressedImpl<TStorageType, compressedBlockSize><<<gridSize, blockSize, 0, stream>>>(src, map, mapMask, dst, size, bitsPerKey);
     }
 
 
@@ -67,8 +68,9 @@ namespace NKernel {
 
         constexpr ui32 blockSize = CompressCudaBlockSize();
         const ui32 numBlocks = CeilDivide((int)size, TCompressionHelper<TStorageType, blockSize>(bitsPerKey).KeysPerBlock());
+        const ui32 gridSize = min(TArchProps::MaxBlockCount(), numBlocks);
 
-        DecompressImpl<TStorageType, blockSize> << < min(TArchProps::MaxBlockCount(), numBlocks), blockSize, 0, stream >> >(src, dst, size, bitsPerKey, numBlocks);
+        DecompressImpl<TStorageType, blockSize><<<gridSize, blockSize, 0, stream>>>(src, dst, size, bitsPerKey, numBlocks);
     }
 
     template <class TStorageType>
@@ -76,7 +78,8 @@ namespace NKernel {
 
         constexpr ui32 blockSize = CompressCudaBlockSize();
         const ui32 numBlocks = CeilDivide((int)size, TCompressionHelper<TStorageType, blockSize>(bitsPerKey).KeysPerBlock());
-        CompressImpl<TStorageType, blockSize> << < min(TArchProps::MaxBlockCount(), numBlocks), blockSize, 0, stream >> >(src, size, dst, bitsPerKey, numBlocks);
+        const ui32 gridSize = min(TArchProps::MaxBlockCount(), numBlocks);
+        CompressImpl<TStorageType, blockSize><<<gridSize, blockSize, 0, stream>>>(src, size, dst, bitsPerKey, numBlocks);
     }
 
     #define COMPRESS(Type) \
@@ -89,6 +92,7 @@ namespace NKernel {
 
 
 }
+
 
 
 

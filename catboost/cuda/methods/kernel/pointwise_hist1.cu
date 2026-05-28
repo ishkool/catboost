@@ -1,6 +1,10 @@
 #include "pointwise_hist1.cuh"
 #include "split_properties_helpers.cuh"
+#if defined(__HIP_PLATFORM_AMD__)
+#include <hip/hip_cooperative_groups.h>
+#else
 #include <cooperative_groups.h>
+#endif
 #include <library/cpp/cuda/wrappers/arch.h>
 #include <catboost/cuda/cuda_util/kernel/instructions.cuh>
 #include <catboost/cuda/cuda_util/kernel/kernel_helpers.cuh>
@@ -632,13 +636,13 @@ template <int BlockSize, bool IsFullPass>
     {
 
         if (fullPass) {
-            ComputeSplitPropertiesNBImpl < BlockSize, true > << <numBlocks, BlockSize, 0, stream>>>(BlocksPerFeatureCount,
+            ComputeSplitPropertiesNBImpl < BlockSize, true > <<<numBlocks, BlockSize, 0, stream>>>(BlocksPerFeatureCount,
                     nbFeatures, nbCount, cindex, target,
                             indices, partition, binSums, binFeatureCount
             );
 
         } else {
-            ComputeSplitPropertiesNBImpl < BlockSize, false > << <numBlocks, BlockSize, 0, stream>>>( BlocksPerFeatureCount,
+            ComputeSplitPropertiesNBImpl < BlockSize, false > <<<numBlocks, BlockSize, 0, stream>>>( BlocksPerFeatureCount,
                     nbFeatures, nbCount, cindex, target,
                             indices, partition, binSums, binFeatureCount
             );
@@ -659,9 +663,9 @@ template <int BlockSize, bool IsFullPass>
                                      TCudaStream stream,
                                      dim3 numBlocks) {
         if (fullPass) {
-            ComputeSplitPropertiesBImpl < BlockSize, true > << <numBlocks, BlockSize, 0, stream>>>(BlocksPerFeatureCount, bFeatures, bCount, cindex, target,  indices, partition, binSums, histLineSize);
+            ComputeSplitPropertiesBImpl < BlockSize, true > <<<numBlocks, BlockSize, 0, stream>>>(BlocksPerFeatureCount, bFeatures, bCount, cindex, target,  indices, partition, binSums, histLineSize);
         } else {
-            ComputeSplitPropertiesBImpl < BlockSize, false > << <numBlocks, BlockSize, 0, stream>>>(BlocksPerFeatureCount, bFeatures, bCount, cindex, target,  indices, partition, binSums, histLineSize);
+            ComputeSplitPropertiesBImpl < BlockSize, false > <<<numBlocks, BlockSize, 0, stream>>>(BlocksPerFeatureCount, bFeatures, bCount, cindex, target,  indices, partition, binSums, histLineSize);
         }
     };
 
@@ -761,12 +765,12 @@ template <int BlockSize, bool IsFullPass>
     {
 
         if (fullPass) {
-            ComputeSplitPropertiesHalfByteImpl < BlockSize, true > << <numBlocks, BlockSize, 0, stream>>>(
+            ComputeSplitPropertiesHalfByteImpl < BlockSize, true > <<<numBlocks, BlockSize, 0, stream>>>(
                     BlocksPerFeatureCount, nbFeatures, nbCount, cindex, target, indices, partition, binSums, binFeatureCount
             );
 
         } else {
-            ComputeSplitPropertiesHalfByteImpl < BlockSize, false > << <numBlocks, BlockSize, 0, stream>>>(
+            ComputeSplitPropertiesHalfByteImpl < BlockSize, false > <<<numBlocks, BlockSize, 0, stream>>>(
                     BlocksPerFeatureCount, nbFeatures, nbCount, cindex, target, indices, partition, binSums, binFeatureCount);
         }
     }
@@ -933,3 +937,5 @@ template <int BlockSize, bool IsFullPass>
 
 
 }
+
+

@@ -180,7 +180,12 @@ namespace NThreading {
         TFuture<TFutureType<TFutureCallResult<F, void>>> Apply(F&& func) const;
 
         template <typename R>
+#if defined(__HIP_PLATFORM_AMD__)
+        // ROCm/HIP: libc++ on this platform exposes the internal __remove_cvref_t in some configs
+        TFuture<std::__remove_cvref_t<R>> Return(R&& value) const;
+#else
         TFuture<std::remove_cvref_t<R>> Return(R&& value) const;
+#endif
 
         TFuture<void> IgnoreResult() const {
             return *this;
@@ -294,3 +299,4 @@ namespace NThreading {
 #define INCLUDE_FUTURE_INL_H
 #include "future-inl.h"
 #undef INCLUDE_FUTURE_INL_H
+

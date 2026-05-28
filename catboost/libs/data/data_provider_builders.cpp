@@ -1666,8 +1666,8 @@ namespace NCB {
             } else {
                 size_t prefixLength = Min(Data.MetaInfo.ClassLabels.size(), schemaClassLabels.size());
                 auto firstGivenLabels = TConstArrayRef<NJson::TJsonValue>(
-                    Data.MetaInfo.ClassLabels.begin(),
-                    Data.MetaInfo.ClassLabels.begin() + prefixLength
+                    Data.MetaInfo.ClassLabels.data(),
+                    prefixLength
                 );
                 CB_ENSURE(firstGivenLabels == schemaClassLabels,
                           "Class-names incompatible with quantized pool, expected: " << JoinSeq(",", schemaClassLabels));
@@ -2569,3 +2569,4 @@ namespace NCB {
         }
     }
 }
+

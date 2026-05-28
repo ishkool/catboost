@@ -8,7 +8,12 @@
 #include <catboost/cuda/cuda_util/kernel/fill.cuh>
 #include <catboost/cuda/methods/kernel/score_calcers.cuh>
 
+#if defined(__HIP_PLATFORM_AMD__)
+#include <hipcub/block/block_reduce.hpp>
+namespace cub = hipcub;
+#else
 #include <cub/block/block_reduce.cuh>
+#endif
 
 #include <cmath>
 #include <exception>
@@ -175,7 +180,7 @@ namespace NKernel {
         }
 
         #define RUN() \
-        ComputeOptimalSplits<blockSize, TScoreCalcer> << < numBlocks, blockSize, 0, stream >> > (binaryFeatures, binaryFeatureCount, binFeaturesWeights, binFeaturesWeightsCount, histograms, partStats,  statCount, partIds, partBlockSize, restPartIds, restPartCount, multiclassOptimization, scoreCalcer, result);
+        ComputeOptimalSplits<blockSize, TScoreCalcer><<<numBlocks, blockSize, 0, stream>>>(binaryFeatures, binaryFeatureCount, binFeaturesWeights, binFeaturesWeightsCount, histograms, partStats,  statCount, partIds, partBlockSize, restPartIds, restPartCount, multiclassOptimization, scoreCalcer, result);
 
 
         switch (scoreFunction)
@@ -501,7 +506,7 @@ namespace NKernel {
         }
 
         #define RUN() \
-        ComputeOptimalSplitsRegion<blockSize, TScoreCalcer> << < numBlocks, blockSize, 0, stream >> > (binaryFeatures, binaryFeatureCount, binFeaturesWeights, binFeaturesWeightsCount, histograms, partStats,  statCount, partIds, multiclassOptimization, scoreCalcer, result);
+        ComputeOptimalSplitsRegion<blockSize, TScoreCalcer><<<numBlocks, blockSize, 0, stream>>>(binaryFeatures, binaryFeatureCount, binFeaturesWeights, binFeaturesWeightsCount, histograms, partStats,  statCount, partIds, multiclassOptimization, scoreCalcer, result);
 
 
         switch (scoreFunction)
@@ -573,7 +578,7 @@ namespace NKernel {
         }
 
         #define RUN() \
-        ComputeOptimalSplit<blockSize, TScoreCalcer> << < numBlocks, blockSize, 0, stream >> > (binaryFeatures, binaryFeatureCount, binFeaturesWeights, binFeaturesWeightsCount, histograms, partStats,  statCount, partId, maybeSecondPartId, multiclassOptimization, scoreCalcer, result);
+        ComputeOptimalSplit<blockSize, TScoreCalcer><<<numBlocks, blockSize, 0, stream>>>(binaryFeatures, binaryFeatureCount, binFeaturesWeights, binFeaturesWeightsCount, histograms, partStats,  statCount, partId, maybeSecondPartId, multiclassOptimization, scoreCalcer, result);
 
 
         switch (scoreFunction)
@@ -715,3 +720,4 @@ namespace NKernel {
 
     #undef ARGMAX
 }
+

@@ -33,9 +33,10 @@ namespace NKernel {
         const ui64 blocksNum = min((objectsCount + blockSize - 1) / blockSize,
                                    (ui32)TArchProps::MaxBlockCount());
 
-        AddLangevinNoiseImpl<blockSize> << < blocksNum, blockSize, 0, stream >> > (seeds,
+        AddLangevinNoiseImpl<blockSize><<<blocksNum, blockSize, 0, stream>>>(seeds,
                                                                                    values,
                                                                                    objectsCount,
                                                                                    coefficient);
     }
 }
+

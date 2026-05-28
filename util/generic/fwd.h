@@ -2,7 +2,23 @@
 
 #include <util/system/defaults.h>
 
+// For ROCm/HIP builds, use standard C++ headers instead of stlfwd
+// For CUDA builds, use libcxxcuda11's stlfwd
+#if defined(__HIP_PLATFORM_AMD__)
+#include <iosfwd>
+#include <memory>
+#include <cstddef>
+#include <utility>
+#include <functional>
+#include <filesystem>
+#include <vector>
+#include <list>
+#include <deque>
+#include <map>
+#include <set>
+#else
 #include <stlfwd>
+#endif
 
 template <typename TCharType, typename TTraits = std::char_traits<TCharType>>
 class TBasicString;

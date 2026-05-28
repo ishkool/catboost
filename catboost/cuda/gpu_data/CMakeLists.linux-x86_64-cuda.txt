@@ -23,6 +23,19 @@ add_subdirectory(ut)
 
 add_library(catboost-cuda-gpu_data)
 
+if (HAVE_ROCM)
+  if(${CMAKE_VERSION} VERSION_LESS "3.17.0")
+      message(FATAL_ERROR "Build with HIP requires at least cmake 3.17.0")
+  endif()
+
+  enable_language(HIP)
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -D__HIP_PLATFORM_AMD__")
+
+
+  find_package(HIP REQUIRED)
+  target_include_directories(catboost-cuda-gpu_data PRIVATE ${HIP_INCLUDE_DIRS})
+endif()
+
 
 target_link_libraries(catboost-cuda-gpu_data PUBLIC
   contrib-libs-linux-headers
@@ -85,6 +98,10 @@ generate_enum_serilization(catboost-cuda-gpu_data
 
 add_global_library_for(catboost-cuda-gpu_data.global
   catboost-cuda-gpu_data)
+
+if(HAVE_ROCM)
+    target_include_directories(catboost-cuda-gpu_data.global PRIVATE ${HIP_INCLUDE_DIRS})
+endif()
 
 
 target_link_libraries(catboost-cuda-gpu_data.global PUBLIC

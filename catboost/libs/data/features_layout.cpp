@@ -369,7 +369,7 @@ bool TFeaturesLayout::HasSparseFeatures(bool checkOnlyAvailable) const noexcept 
         [=] (const TFeatureMetaInfo& metaInfo) {
             return (!checkOnlyAvailable || metaInfo.IsAvailable) && metaInfo.IsSparse;
         }
-    );
+    ) != ExternalIdxToMetaInfo.end();
 }
 
 void TFeaturesLayout::IgnoreExternalFeature(ui32 externalFeatureIdx) noexcept {
@@ -586,3 +586,4 @@ void NCB::CheckCompatibleForQuantize(
         );
     }
 }
+

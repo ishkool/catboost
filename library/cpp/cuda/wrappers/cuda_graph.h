@@ -4,8 +4,11 @@
 
 #include <util/generic/ptr.h>
 
+#if defined(__HIP_PLATFORM_AMD__)
+// HIP: cuda types from base.h -> exception.h.
+#else
 #include <cuda_runtime.h>
-
+#endif
 
 namespace NCuda {
     class TStreamCapture;

@@ -734,8 +734,10 @@ namespace NCB {
                 estimatedFeatures[estimatedFeatureId].ModelEstimatedFeature.CalcerId) {
 
                 auto calcerId = estimatedFeatures[firstFeatureFromCalcer].ModelEstimatedFeature.CalcerId;
-                TConstArrayRef<TEstimatedFeature> usedEstimatedFeatures(estimatedFeatures.begin() + firstFeatureFromCalcer,
-                                                                        estimatedFeatures.begin() + estimatedFeatureId);
+                // Use .data() for C++20 compatibility
+                TConstArrayRef<TEstimatedFeature> usedEstimatedFeatures(
+                    estimatedFeatures.data() + firstFeatureFromCalcer,
+                    estimatedFeatureId - firstFeatureFromCalcer);
 
                 if (featureEstimators.GetEstimatorSourceType(calcerId) == EFeatureType::Text) {
                     textCollectionBuilder.AddFeatureEstimator(calcerId, usedEstimatedFeatures, reorderedEstimatedFeatures);
@@ -792,3 +794,4 @@ namespace NCB {
         }
     }
 }
+

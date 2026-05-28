@@ -890,8 +890,8 @@ void CalcFinalCtrsImpl(
         leafCount = ComputeReindexHash(
             ctrLeafCountLimit,
             &tmpHash,
-            hashArr->begin(),
-            hashArr->begin() + totalSampleCount);
+            hashArr->data(),  // Use .data() for C++20 compatibility
+            hashArr->data() + totalSampleCount);
         auto hashIndexBuilder = result->GetIndexHashBuilder(leafCount);
         for (const auto& kv : tmpHash) {
             hashIndexBuilder.SetIndex(kv.first, kv.second);
@@ -964,12 +964,12 @@ static void CalcFinalCtrs(
         *datasetDataForFinalCtrs.Data.Learn->ObjectsData,
         learnFeaturesSubsetIndexing,
         &perfectHashedToHashedCatValuesMap,
-        hashArr.begin(),
-        hashArr.begin() + learnSampleCount,
+        hashArr.data(),  // Use .data() for C++20 compatibility
+        hashArr.data() + learnSampleCount,
         localExecutor
     );
     if (totalSampleCount > learnSampleCount) {
-        ui64* testHashBegin = hashArr.begin() + learnSampleCount;
+        ui64* testHashBegin = hashArr.data() + learnSampleCount;  // Use .data()
         for (const auto& testDataPtr : datasetDataForFinalCtrs.Data.Test) {
             ui64* testHashEnd = testHashBegin + testDataPtr->GetObjectCount();
             CalcHashes(
@@ -1141,4 +1141,5 @@ void CalcFinalCtrsAndSaveToModel(
 
     CATBOOST_DEBUG_LOG << "CTR calculation finished" << Endl;
 }
+
 

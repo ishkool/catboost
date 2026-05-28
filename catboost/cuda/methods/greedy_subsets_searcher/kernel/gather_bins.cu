@@ -1,7 +1,13 @@
 /**/#include "gather_bins.cuh"
 #include <catboost/cuda/cuda_util/kernel/kernel_helpers.cuh>
 #include <library/cpp/cuda/wrappers/arch.h>
+
+#if defined(__HIP_PLATFORM_AMD__)
+#include <hip/hip_cooperative_groups.h>
+#else
 #include <cooperative_groups.h>
+#endif
+
 
 
 using namespace cooperative_groups;

@@ -2,7 +2,12 @@
 #include "segmented_scan.cuh"
 #include "segmented_scan_helpers.cuh"
 
+#if defined(__HIP_PLATFORM_AMD__)
+#include <hipcub/device/device_scan.hpp>
+namespace cub = hipcub;
+#else
 #include <cub/device/device_scan.cuh>
+#endif
 
 namespace NKernel
 {
@@ -73,3 +78,4 @@ namespace NKernel
     template ui64 SegmentedScanVectorTempSize<float>(ui32, bool);
     template ui64 SegmentedScanVectorTempSize<double>(ui32, bool);
 }
+

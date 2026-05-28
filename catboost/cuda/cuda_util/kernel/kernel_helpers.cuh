@@ -1,7 +1,15 @@
 #pragma once
+
+#if defined(__HIP_PLATFORM_AMD__)
+#include <hipcub/thread/thread_load.hpp>
+#include <hipcub/thread/thread_store.hpp>
+#include <hip/hip_cooperative_groups.h>
+namespace cub = hipcub;  // Alias for compatibility
+#else
 #include <cub/thread/thread_load.cuh>
 #include <cub/thread/thread_store.cuh>
 #include <cooperative_groups.h>
+#endif
 
 // if ptxas warns like this
 // 'Value of threads per SM for entry ... is out of range. .minnctapersm will be ignored'
@@ -84,7 +92,7 @@ namespace NKernel {
         __syncwarp();
         #pragma unroll
         for (int s = reduceSize >> 1; s > 0; s >>= 1) {
-            val = op(val, __shfl_down_sync(0xFFFFFFFF, val, s));
+            val = op(val, __shfl_down_sync(CATBOOST_FULL_WARP_MASK, val, s));
         }
         return val;
     }
@@ -97,7 +105,7 @@ namespace NKernel {
 
         #pragma unroll
         for (int s = reduceSize >> 1; s > 0; s >>= 1){
-            val = op(val, __shfl_down_sync(0xFFFFFFFF, val, s));
+            val = op(val, __shfl_down_sync(CATBOOST_FULL_WARP_MASK, val, s));
         }
         if (x == 0) {
             data[x] = val;
@@ -265,3 +273,5 @@ namespace NKernel {
     }
 
 }
+
+

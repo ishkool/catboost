@@ -27,6 +27,17 @@ target_link_libraries(model_perftest PUBLIC
   library-cpp-getopt
 )
 
+# ROCm/Clang needs explicit C++ standard library and runtime linking
+if(HAVE_ROCM OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+  target_link_libraries(model_perftest PUBLIC
+    stdc++
+    c++abi
+    unwind
+    gcc_s
+    c
+  )
+endif()
+
 target_allocator(model_perftest
   cpp-malloc-tcmalloc
   libs-tcmalloc-no_percpu_cache
@@ -41,9 +52,6 @@ target_link_options(model_perftest PRIVATE
   -lpthread
   -lrt
   -ldl
-  -lcudadevrt
-  -lculibos
-  -lcudart_static
 )
 
 

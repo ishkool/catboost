@@ -2,6 +2,7 @@
 #include <catboost/cuda/cuda_lib/kernel/kernel.cuh>
 #include <catboost/cuda/cuda_util/kernel/kernel_helpers.cuh>
 #include <catboost/cuda/cuda_util/kernel/fill.cuh>
+#include <cfloat>
 
 namespace NKernel {
 
@@ -217,3 +218,4 @@ namespace NKernel {
     }
 
 }
+

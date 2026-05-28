@@ -148,14 +148,24 @@ static TVector<double> GetPredictionDiffSingle(
         for (int splitIdx = borders[featureIdx] - 1; splitIdx >= 0; --splitIdx) {
             diff += floatFeatureImpact[featureIdx][splitIdx];
             if ((tryIncrease && diff > 0.) || (!tryIncrease && diff < 0.)) {
+#if defined(__HIP_PLATFORM_AMD__)
+                // ROCm/HIP: clang resolves `abs(double)` to integer abs(int); use fabs().
+                impact[externalIdx] = std::max(impact[externalIdx], fabs(diff));
+#else
                 impact[externalIdx] = std::max(impact[externalIdx], abs(diff));
+#endif
             }
         }
         diff = 0;
         for (int splitIdx = borders[featureIdx] + 1; splitIdx < floatFeatureImpact[featureIdx].ysize(); ++splitIdx) {
             diff += floatFeatureImpact[featureIdx][splitIdx];
             if ((tryIncrease && diff > 0.) || (!tryIncrease && diff < 0.)) {
+#if defined(__HIP_PLATFORM_AMD__)
+                // ROCm/HIP: clang resolves `abs(double)` to integer abs(int); use fabs().
+                impact[externalIdx] = std::max(impact[externalIdx], fabs(diff));
+#else
                 impact[externalIdx] = std::max(impact[externalIdx], abs(diff));
+#endif
             }
         }
     }
@@ -279,3 +289,4 @@ void CalcAndOutputPredictionDiff(
         out << impact.first << " " << impact.second << Endl;
     }
 }
+

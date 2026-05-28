@@ -6,7 +6,13 @@
 #include <catboost/cuda/cuda_util/kernel/fill.cuh>
 #include <catboost/cuda/cuda_util/kernel/random_gen.cuh>
 #include <catboost/cuda/cuda_util/kernel/scan.cuh>
+
+#if defined(__HIP_PLATFORM_AMD__)
+#include <hipcub/block/block_radix_sort.hpp>
+namespace cub = hipcub;
+#else
 #include <cub/block/block_radix_sort.cuh>
+#endif
 
 #include <util/generic/cast.h>
 
@@ -426,3 +432,4 @@ namespace NKernel
         }
     }
 }
+

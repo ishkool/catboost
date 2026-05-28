@@ -1,6 +1,13 @@
 #include "sort.cuh"
 #include "fill.cuh"
+
+#if defined(__HIP_PLATFORM_AMD__)
+#include <hipcub/device/device_radix_sort.hpp>
+namespace cub = hipcub;
+#else
 #include <cub/device/device_radix_sort.cuh>
+#endif
+
 #include <cassert>
 
 namespace NKernel {
@@ -68,3 +75,4 @@ namespace NKernel {
 
     extern template cudaError_t RadixSort(bool* keys, ui32* values, ui32 size, TRadixSortContext& context,  TCudaStream stream);
 }
+

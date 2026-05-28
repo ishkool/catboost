@@ -193,7 +193,7 @@ void AddFileLoggers(
 
 void AddConsoleLogger(
         const TString& learnToken,
-        const TVector<const TString>& testTokens,
+        const TVector<TString>& testTokens,
         bool hasTrain,
         int metricPeriod,
         int iterationCount,
@@ -218,7 +218,7 @@ void Log(
         TMaybe<int> bestIteration,
         const TProfileResults& profileResults,
         const TString& learnToken,
-        const TVector<const TString>& testTokens,
+        const TVector<TString>& testTokens,
         bool outputErrors,
         TLogger* logger
 ) {
@@ -331,9 +331,9 @@ TString GetParametersToken() {
     return "parameters";
 }
 
-TVector<const TString> GetTrainModelTestTokens(int testCount) {
+TVector<TString> GetTrainModelTestTokens(int testCount) {
     TString testTokenPrefix = "test";
-    TVector<const TString> testTokens;
+    TVector<TString> testTokens;
     for (int testIdx = 0; testIdx < testCount; ++testIdx) {
         TString testToken = testTokenPrefix + (testIdx > 0 ? ToString(testIdx) : "");
         testTokens.push_back(testToken);
@@ -347,7 +347,7 @@ void InitializeFileLoggers(
         const TOutputFiles& outputFiles,
         const TVector<const IMetric*>& metrics,
         const TString& learnToken,
-        const TVector<const TString>& testTokens,
+        const TVector<TString>& testTokens,
         int metricPeriod,
         TLogger* logger) {
     TVector<TString> metricDescriptions = GetMetricsDescription(metrics);
@@ -403,3 +403,5 @@ void InitializeFileLoggers(
         logger
     );
 }
+
+

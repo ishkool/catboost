@@ -2,8 +2,14 @@
 #include "segmented_scan_helpers.cuh"
 #include "fill.cuh"
 
+#if defined(__HIP_PLATFORM_AMD__)
+#include <hipcub/device/device_scan.hpp>
+#include <hipcub/iterator/transform_input_iterator.hpp>
+namespace cub = hipcub;
+#else
 #include <cub/device/device_scan.cuh>
 #include <thrust/iterator/transform_iterator.h>
+#endif
 
 namespace NKernel {
 
@@ -93,7 +99,11 @@ namespace NKernel {
                 return static_cast<ui64>(v);
             }
         };
+#if defined(__HIP_PLATFORM_AMD__)
+        using TUi32AsUi64 = cub::TransformInputIterator<ui64, TCastToUi64, ui32*>;
+#else
         using TUi32AsUi64 = thrust::transform_iterator<TCastToUi64, ui32*, ui64>;
+#endif
     }
 
     template <>
@@ -133,3 +143,4 @@ namespace NKernel {
 
 
 }
+

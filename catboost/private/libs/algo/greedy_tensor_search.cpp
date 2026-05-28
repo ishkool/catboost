@@ -1133,7 +1133,13 @@ static void MarkFeaturesAsUsedPerObject(
         const auto externalFeatureIndex = layout.GetExternalFeatureIdx(internalFeatureIndex, type);
         auto it = usedFeatures->find(externalFeatureIndex);
         if (it != usedFeatures->end()) { //if we want to keep this feature usage by objects
+#if defined(__HIP_PLATFORM_AMD__)
+            // ROCm/HIP: TArrayRef<bool> cannot wrap vector<bool> (no contiguous storage).
+            // Iterate directly via the underlying TVector<bool> instead.
+            auto& perObjectUsage = it->second;
+#else
             TArrayRef<bool> perObjectUsage(it->second);
+#endif
             for (const auto idx : docsSubset) {
                 perObjectUsage[idx] = true;
             }
@@ -1953,3 +1959,4 @@ void GreedyTensorSearch(
             CB_ENSURE(false, "GrowPolicy " << growPolicy << " is unimplemented for CPU.");
     }
 }
+

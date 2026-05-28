@@ -528,7 +528,15 @@ TVector<bool> GetIsLeafEmpty(int curDepth, TConstArrayRef<TIndexType> indices, N
         /*merge*/[=] (TVector<bool>* isLeafEmpty, TVector<TVector<bool>>&& outputs) {
             for (const auto& output : outputs) {
                 for (auto idx : xrange(leafCount)) {
+#if defined(__HIP_PLATFORM_AMD__)
+                    // ROCm/HIP: vector<bool> proxy reference does not accept compound
+                    // assignment directly; route through a real bool temporary.
+                    bool isEmpty = (*isLeafEmpty)[idx];
+                    isEmpty &= output[idx];
+                    (*isLeafEmpty)[idx] = isEmpty;
+#else
                     (*isLeafEmpty)[idx] &= output[idx];
+#endif
                 }
             }
         },
@@ -678,7 +686,7 @@ TVector<TIndexType> BuildIndices(
             onlineCtrs,
             /*objectSubsetIdx*/ 0, // learn
             localExecutor,
-            indices.begin());
+            indices.data());  // Use .data() for C++20 compatibility
     }
     if (dataParts != EBuildIndicesDataParts::LearnOnly) {
         ui32 docOffset = learnSampleCount;
@@ -692,7 +700,7 @@ TVector<TIndexType> BuildIndices(
                 onlineCtrs,
                 testIdx + 1,
                 localExecutor,
-                indices.begin() + docOffset);
+                indices.data() + docOffset);  // Use .data() for C++20 compatibility
             docOffset += testSet.GetObjectCount();
         }
     }
@@ -712,4 +720,6 @@ TVector<TIndexType> BuildIndicesForBinTree(
     evaluator->CalcLeafIndexes(quantizedFeatures, treeId, treeId + 1, indexesVec);
     return indexesVec;
 }
+
+
 

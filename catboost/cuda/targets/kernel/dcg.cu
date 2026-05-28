@@ -7,7 +7,11 @@
 #include <util/generic/va_args.h>
 #include <util/system/types.h>
 
+#if defined(__HIP_PLATFORM_AMD__)
+#include <hip/hip_fp16.h>
+#else
 #include <cuda_fp16.h>
+#endif
 
 namespace NKernel {
 
@@ -369,7 +373,7 @@ __global__ void RemoveGroupMeanImpl(
     }
 
     T mean = ShuffleReduce<T>(localThreadIdx, localMean, LogicalWarpSize);
-    mean = __shfl_sync(0xFFFFFFFF, mean, 0, LogicalWarpSize);
+    mean = __shfl_sync(0xFFFFFFFFFFFFFFFFULL, mean, 0, LogicalWarpSize);
 
     for (ui32 i = localThreadIdx; i < groupSize; i += LogicalWarpSize) {
         normalized[i] = __ldg(values + i) - mean;
@@ -424,3 +428,5 @@ Y_MAP_ARGS(
 #undef Y_CATBOOST_CUDA_F_IMPL_PROXY
 
 }
+
+

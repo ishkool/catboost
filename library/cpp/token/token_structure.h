@@ -304,3 +304,4 @@ inline char GetTokenDelimChar(ETokenDelim delim) {
             return 0;
     }
 }
+

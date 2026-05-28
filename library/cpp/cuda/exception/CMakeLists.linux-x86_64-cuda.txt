@@ -14,15 +14,37 @@
 
 add_library(cpp-cuda-exception)
 
+if (HAVE_ROCM)
+  if(${CMAKE_VERSION} VERSION_LESS "3.17.0")
+      message(FATAL_ERROR "Build with HIP requires at least cmake 3.17.0")
+  endif()
 
-target_link_libraries(cpp-cuda-exception PUBLIC
-  contrib-libs-linux-headers
-  contrib-libs-cxxsupp
-  yutil
-  internal-platform-cuda
-)
+  enable_language(HIP)
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -D__HIP_PLATFORM_AMD__")
+
+  find_package(HIP REQUIRED)
+  target_include_directories(cpp-cuda-exception PRIVATE ${HIP_INCLUDE_DIRS})
+endif()
+
+if (HAVE_ROCM)
+  # ROCm/HIP build: skip libcxxsupp (clang uses system libc++).
+  target_link_libraries(cpp-cuda-exception PUBLIC
+    contrib-libs-linux-headers
+    yutil
+    internal-platform-cuda
+  )
+else()
+  # CUDA build: keep libcxxsupp.
+  target_link_libraries(cpp-cuda-exception PUBLIC
+    contrib-libs-linux-headers
+    contrib-libs-cxxsupp
+    yutil
+    internal-platform-cuda
+  )
+endif()
 
 target_sources(cpp-cuda-exception PRIVATE
   ${PROJECT_SOURCE_DIR}/library/cpp/cuda/exception/exception.cpp
 )
+
 

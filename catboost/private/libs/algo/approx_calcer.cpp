@@ -850,7 +850,8 @@ static void CalcApproxDeltaSimple(
     }
 
     const auto lossCalcerFunc = [&](const TVector<TVector<double>>& approxDeltas, const TVector<TVector<double>>& leafDeltas) {
-        TConstArrayRef<TQueryInfo> bodyTailQueryInfo(fold.LearnQueriesInfo.begin(), bt.BodyQueryFinish);
+        // Use .data() for C++20 compatibility
+        TConstArrayRef<TQueryInfo> bodyTailQueryInfo(fold.LearnQueriesInfo.data(), bt.BodyQueryFinish);
         TMetricHolder additiveStats;
         if (!ctx->Params.BoostingOptions->ApproxOnFullHistory) {
             TVector<TVector<double>> localLeafDeltas(*sumLeafDeltas);
@@ -875,7 +876,8 @@ static void CalcApproxDeltaSimple(
                 To2DConstArrayRef<double>(bt.Approx),
                 To2DConstArrayRef<double>(localApproxDeltas),
                 error.GetIsExpApprox(),
-                MakeArrayRef<const float>(fold.LearnTarget[0].begin(), bt.BodyFinish),
+                // Use .data() for C++20 compatibility
+                MakeArrayRef<const float>(fold.LearnTarget[0].data(), bt.BodyFinish),
                 fold.GetLearnWeights(),
                 bodyTailQueryInfo,
                 *lossFunction[0],
@@ -1157,3 +1159,4 @@ void CalcApproxForLeafStruct(
         fold.BodyTailArr.ysize(),
         NPar::TLocalExecutor::WAIT_COMPLETE);
 }
+

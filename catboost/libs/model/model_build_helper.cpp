@@ -104,9 +104,9 @@ void TCommonModelBuilderHelper::ProcessSplitsSet(const TSet<TModelSplit>& modelS
     }
     trees->SetFloatFeatures(std::move(FloatFeatures));
 
-    MakeFeaturesUnused(MakeArrayRef(CatFeatures.begin(), CatFeatures.end()));
-    MakeFeaturesUnused(MakeArrayRef(TextFeatures.begin(), TextFeatures.end()));
-    MakeFeaturesUnused(MakeArrayRef(EmbeddingFeatures.begin(), EmbeddingFeatures.end()));
+    MakeFeaturesUnused(MakeArrayRef(CatFeatures.data(), CatFeatures.size()));
+    MakeFeaturesUnused(MakeArrayRef(TextFeatures.data(), TextFeatures.size()));
+    MakeFeaturesUnused(MakeArrayRef(EmbeddingFeatures.data(), EmbeddingFeatures.size()));
 
     trees->SetCatFeatures(std::move(CatFeatures));
     trees->SetTextFeatures(std::move(TextFeatures));
@@ -302,3 +302,4 @@ void TNonSymmetricTreeModelBuilder::InsertNodeValue(const TNonSymmetricTreeNode&
         LeafWeights.push_back(*node.NodeWeight);
     }
 }
+

@@ -112,7 +112,13 @@ static bool AreFilesDifferent(
 
             const double diff = CalcDiff(number0, number1);
 
+#ifdef __HIP_PLATFORM_AMD__
+            // ROCm/HIP requires std::isnan from <cmath>
+            if (std::isnan(number0) || std::isnan(number1) || std::isnan(diff)) {
+#else
+            // CUDA/CPU use unqualified isnan
             if (isnan(number0) || isnan(number1) || isnan(diff)) {
+#endif
                 ReportDiff(EDiffType::NumericDiffGotNaN, lineNumber, columnNumber, it0, it1);
                 return true;
             }

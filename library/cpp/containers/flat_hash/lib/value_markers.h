@@ -111,7 +111,7 @@ public:
         return *this;
     }
 
-    auto Create() const noexcept { return std::tie(Key_, Value_); }
+    std::pair<const Key&, const T&> Create() const noexcept { return {Key_, Value_}; }
 
     template <class U>
     bool Equals(const U& rhs) const {
@@ -128,3 +128,4 @@ static_assert(NConcepts::ValueMarkerV<TEqValueMarker<int, int>>);
 }  // namespace NMap
 
 }  // namespace NFlatHash
+

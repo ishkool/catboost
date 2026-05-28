@@ -125,7 +125,7 @@ namespace NCB {
             , LastBlockInBlockEndIdx(0) // properly inited below
         {
             const auto& blocks = rangesSubset.Blocks;
-            CurrentBlock = LowerBound(
+            auto it = LowerBound(
                 blocks.begin(),
                 blocks.end(),
                 offset,
@@ -133,6 +133,7 @@ namespace NCB {
                     return block.GetDstEnd() <= offset;
                 }
             );
+            CurrentBlock = blocks.data() + (it - blocks.begin());
             if (CurrentBlock != EndBlock) {
                 CurrentIdx = CurrentBlock->SrcBegin + (offset - CurrentBlock->DstBegin);
                 EndIdx = CurrentBlock->SrcEnd;
@@ -1086,7 +1087,7 @@ namespace NCB {
                 return MakeHolder<TArraySubsetBlockIterator<TDstValue, TArrayLike, TIterator, TTransformer>>(
                     std::move(src),
                     remainingSize,
-                    TIterator(indexedSubset.begin() + offset, indexedSubset.end()),
+                    TIterator(indexedSubset.data() + offset, indexedSubset.data() + indexedSubset.size()),
                     std::move(transformer)
                 );
             }
@@ -1292,4 +1293,5 @@ struct TDumper<NCB::TArraySubsetInvertedIndexing<TSize>> {
         std::visit(NCB::TDumperArraySubsetInvertedIndexingVisitor<S, TSize>(s), invertedSubset);
     }
 };
+
 

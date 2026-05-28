@@ -16,11 +16,11 @@ struct SizeFitter : std::false_type {};
 
 template <class T>
 struct SizeFitter<T, std::void_t<
-    DCT(DCV(const T).EvalIndex(DCV(size_t), DCV(size_t))),
-    DCT(DCV(const T).EvalSize(DCV(size_t))),
-    DCT(DCV(T).Update(DCV(size_t)))>>
-    : std::conjunction<std::is_same<DCT(DCV(const T).EvalIndex(DCV(size_t), DCV(size_t))), size_t>,
-                       std::is_same<DCT(DCV(const T).EvalSize(DCV(size_t))), size_t>,
+    DCT(DCV(const T).EvalIndex(DCV(std::size_t), DCV(std::size_t))),
+    DCT(DCV(const T).EvalSize(DCV(std::size_t))),
+    DCT(DCV(T).Update(DCV(std::size_t)))>>
+    : std::conjunction<std::is_same<DCT(DCV(const T).EvalIndex(DCV(std::size_t), DCV(std::size_t))), std::size_t>,
+                       std::is_same<DCT(DCV(const T).EvalSize(DCV(std::size_t))), std::size_t>,
                        std::is_copy_constructible<T>,
                        std::is_move_constructible<T>,
                        std::is_copy_assignable<T>,
@@ -33,3 +33,4 @@ constexpr bool SizeFitterV = SizeFitter<T>::value;
 #undef DCT
 
 }  // namespace NFlatHash::NConcepts
+

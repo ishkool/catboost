@@ -163,7 +163,13 @@ namespace NCB {
         if constexpr (std::is_same_v<std::remove_const_t<TDst>, TSrc>) {
             return TMaybeOwningArrayHolder<TDst>::CreateOwningReinterpretCast(src);
         } else {
+#if defined(__HIP_PLATFORM_AMD__)
+            // ROCm/HIP: clang's libc++ vector requires a non-const element type;
+            // strip const before instantiating TVector to avoid allocator errors.
+            TVector<std::remove_const_t<TDst>> dstData(src.begin(), src.end());
+#else
             TVector<TDst> dstData(src.begin(), src.end());
+#endif
             return TMaybeOwningArrayHolder<TDst>::CreateOwning(std::move(dstData));
         }
     }
@@ -174,3 +180,4 @@ namespace NCB {
         return CreateOwningWithMaybeTypeCast<const TDst, TSrc>(std::move(src));
     }
 }
+

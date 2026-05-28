@@ -98,10 +98,24 @@ target_link_options(_catboost PRIVATE
   -lpthread
   -lrt
   -ldl
-  -lcudadevrt
-  -lculibos
-  -lcudart_static
 )
+
+# Link CUDA libraries only for NVIDIA CUDA, not for ROCm/HIP
+if (NOT HAVE_ROCM)
+  target_link_options(_catboost PRIVATE
+    -lcudadevrt
+    -lculibos
+    -lcudart_static
+  )
+else()
+  # For ROCm builds: Link system standard libraries explicitly
+  target_link_options(_catboost PRIVATE
+    -lstdc++
+    -lgcc_s
+    -lc
+    -lgcc
+  )
+endif()
 
 target_cython_sources(_catboost PRIVATE
   ${PROJECT_SOURCE_DIR}/catboost/python-package/catboost/_catboost.pyx
@@ -118,15 +132,29 @@ use_export_script(_catboost
   ${PROJECT_SOURCE_DIR}/catboost/python-package/catboost/catboost3.exports
 )
 
-target_cython_options(_catboost
-  -X
-  legacy_implicit_noexcept=True
-  -E
-  UNAME_SYSNAME=Linux
-  --module-name
-  _catboost
-  --cplus
-)
+if(HAVE_ROCM)
+  target_cython_options(_catboost
+    -X
+    legacy_implicit_noexcept=True
+    -E
+    UNAME_SYSNAME=Linux
+    -E
+    CATBOOST_HIP_BUILD=1
+    --module-name
+    _catboost
+    --cplus
+  )
+else()
+  target_cython_options(_catboost
+    -X
+    legacy_implicit_noexcept=True
+    -E
+    UNAME_SYSNAME=Linux
+    --module-name
+    _catboost
+    --cplus
+  )
+endif()
 
 target_cython_include_directories(_catboost
   ${PROJECT_BINARY_DIR}
@@ -146,3 +174,5 @@ target_include_directories(_catboost PRIVATE
 target_cython_include_directories(_catboost
   ${Python3_NumPy_INCLUDE_DIRS}
 )
+
+

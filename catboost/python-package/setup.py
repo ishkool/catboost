@@ -494,7 +494,12 @@ class build_ext(_build_ext):
             have_cuda=bool(self.with_cuda),
             cuda_root_dir=self.with_cuda,
             macos_universal_binaries=self.macos_universal_binaries,
-            cmake_extra_args=[f'-DPython3_ROOT_DIR={python3_root_dir}']
+            cmake_extra_args=[f'-DPython3_ROOT_DIR={python3_root_dir}'] + 
+                (['-DHAVE_CUDA=yes',
+                  '-DHAVE_ROCM=yes', 
+                  '-DCMAKE_C_COMPILER=/opt/rocm/llvm/bin/clang',
+                  '-DCMAKE_CXX_COMPILER=/opt/rocm/llvm/bin/clang++'] 
+                 if self.with_cuda and 'rocm' in str(self.with_cuda).lower() else [])
         )
 
         if not dry_run:
@@ -745,7 +750,7 @@ if __name__ == '__main__':
     setup_requires = get_setup_requires(sys.argv)
 
     setup(
-        name=os.environ.get('CATBOOST_PACKAGE_NAME') or 'catboost',
+        name=os.environ.get('CATBOOST_PACKAGE_NAME') or 'amd_catboost',
         version=os.environ.get('CATBOOST_PACKAGE_VERSION') or get_catboost_version(),
         packages=find_packages(),
         package_data={
@@ -796,3 +801,4 @@ if __name__ == '__main__':
         zip_safe=False,
         setup_requires=setup_requires,
     )
+

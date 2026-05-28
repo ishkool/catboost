@@ -1,5 +1,24 @@
 #pragma once
+
+#if defined(__HIP_PLATFORM_AMD__)
+// For ROCm/HIP builds:
+// UINT_MAX, INT_MAX, CHAR_BIT are defined globally via CMake add_definitions()
+// We DON'T include <limits.h> here because it would find our custom
+// contrib/libs/amd/thrust/limits.h which pulls in thrust headers!
+
+#include <hip/hip_runtime.h>
+#include "cuda_rocm_interop.h"
+
+// Workaround: When __HIPCC_RTC__ is defined, warpSize is not available from amd_warp_functions.h
+// Define it manually using the compiler-provided __AMDGCN_WAVEFRONT_SIZE
+#if defined(__HIPCC_RTC__) && defined(__AMDGCN_WAVEFRONT_SIZE)
+__device__ static constexpr int warpSize = __AMDGCN_WAVEFRONT_SIZE;
+#endif
+
+#else
 #include <cuda_runtime.h>
+#endif
+
 #include <util/generic/array_ref.h>
 
 #include <type_traits>
@@ -38,3 +57,5 @@ namespace NKernel {
 #endif
 
 }
+
+

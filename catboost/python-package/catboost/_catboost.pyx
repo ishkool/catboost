@@ -80,6 +80,11 @@ from util.generic.vector cimport TVector
 from util.system.types cimport ui8, ui16, ui32, ui64, i32, i64
 from util.string.cast cimport StrToD, TryFromString, ToString
 
+# CATBOOST_HIP_BUILD=1 is passed via cmake target_cython_options when HAVE_ROCM.
+IF CATBOOST_HIP_BUILD:
+    ctypedef ui8 feature_mask_elem
+ELSE:
+    ctypedef bool_t feature_mask_elem
 
 include "_util.pxi"
 
@@ -1055,7 +1060,7 @@ cdef extern from "catboost/python-package/catboost/helpers.h":
         size_t elementStride,   # dim 1
         bool_t hasSeparateEmbeddingFeaturesData,
         TConstArrayRef[ui32] mainDataFeatureIdxToDstFeatureIdx,
-        TConstArrayRef[bool_t] isCatFeature,  # can be empty, it means no categorical data
+        TConstArrayRef[feature_mask_elem] isCatFeature,  # can be empty, it means no categorical data
         IRawObjectsOrderDataVisitor* builderVisitor,
         ILocalExecutor* localExecutor,
         future[void]* result) except +ProcessException nogil
@@ -1065,7 +1070,7 @@ cdef extern from "catboost/python-package/catboost/helpers.h":
         TConstArrayRef[ui32] indices,
         bool_t hasSeparateEmbeddingFeaturesData,
         TConstArrayRef[ui32] mainDataFeatureIdxToDstFeatureIdx,
-        TConstArrayRef[bool_t] catFeaturesMask,
+        TConstArrayRef[feature_mask_elem] catFeaturesMask,
         IRawObjectsOrderDataVisitor* builderVisitor,
         ILocalExecutor* localExecutor) except +ProcessException nogil
     cdef size_t GetNumPairs(const TDataProvider& dataProvider)
@@ -2388,14 +2393,20 @@ cdef TFeaturesLayout* _init_features_layout(
         feature_tags_map,
         all_features_are_sparse)
 
-cdef TVector[bool_t] _get_is_feature_type_mask(const TFeaturesLayout* featuresLayout, EFeatureType featureType) except *:
-    cdef TVector[bool_t] mask
-    mask.resize(featuresLayout.GetExternalFeatureCount(), False)
+cdef TVector[feature_mask_elem] _get_is_feature_type_mask(const TFeaturesLayout* featuresLayout, EFeatureType featureType) except *:
+    cdef TVector[feature_mask_elem] mask
+    IF CATBOOST_HIP_BUILD:
+        mask.resize(featuresLayout.GetExternalFeatureCount(), 0)
+    ELSE:
+        mask.resize(featuresLayout.GetExternalFeatureCount(), False)
 
     cdef ui32 idx
     for idx in xrange(featuresLayout.GetExternalFeatureCount()):
         if featuresLayout[0].GetExternalFeatureType(idx) == featureType:
-            mask[idx] = True
+            IF CATBOOST_HIP_BUILD:
+                mask[idx] = 1
+            ELSE:
+                mask[idx] = True
 
     return mask
 
@@ -2478,9 +2489,9 @@ def _set_features_order_data_features_data(
 def _set_features_order_data_ndarray(
     np.ndarray[numpy_num_or_bool_dtype, ndim=2] feature_values,
     ui32 [:] src_feature_idx_to_dst_feature_idx,
-    bool_t [:] is_cat_feature_mask,
-    bool_t [:] is_text_feature_mask,
-    bool_t [:] is_embedding_feature_mask,
+    feature_mask_elem [:] is_cat_feature_mask,
+    feature_mask_elem [:] is_text_feature_mask,
+    feature_mask_elem [:] is_embedding_feature_mask,
     Py_FeaturesOrderBuilderVisitor py_builder_visitor
 ):
 
@@ -3112,9 +3123,9 @@ cdef object _set_features_order_data_pd_data_frame(
     py_builder_visitor.get_raw_features_order_data_visitor(&builder_visitor)
 
     cdef TVector[ui32] main_data_feature_idx_to_dst_feature_idx = _get_main_data_feature_idx_to_dst_feature_idx(features_layout, has_separate_embedding_features_data)
-    cdef TVector[bool_t] is_cat_feature_mask = _get_is_feature_type_mask(features_layout, EFeatureType_Categorical)
-    cdef TVector[bool_t] is_text_feature_mask = _get_is_feature_type_mask(features_layout, EFeatureType_Text)
-    cdef TVector[bool_t] is_embedding_feature_mask = _get_is_feature_type_mask(features_layout, EFeatureType_Embedding)
+    cdef TVector[feature_mask_elem] is_cat_feature_mask = _get_is_feature_type_mask(features_layout, EFeatureType_Categorical)
+    cdef TVector[feature_mask_elem] is_text_feature_mask = _get_is_feature_type_mask(features_layout, EFeatureType_Text)
+    cdef TVector[feature_mask_elem] is_embedding_feature_mask = _get_is_feature_type_mask(features_layout, EFeatureType_Embedding)
     cdef ui32 doc_count = data_frame.shape[0]
 
     cdef TString factor_string
@@ -3375,9 +3386,9 @@ cdef _set_features_order_data_polars_data_frame(
     py_builder_visitor.get_raw_features_order_data_visitor(&builder_visitor)
 
     cdef TVector[ui32] main_data_feature_idx_to_dst_feature_idx = _get_main_data_feature_idx_to_dst_feature_idx(features_layout, has_separate_embedding_features_data)
-    cdef TVector[bool_t] is_cat_feature_mask = _get_is_feature_type_mask(features_layout, EFeatureType_Categorical)
-    cdef TVector[bool_t] is_text_feature_mask = _get_is_feature_type_mask(features_layout, EFeatureType_Text)
-    cdef TVector[bool_t] is_embedding_feature_mask = _get_is_feature_type_mask(features_layout, EFeatureType_Embedding)
+    cdef TVector[feature_mask_elem] is_cat_feature_mask = _get_is_feature_type_mask(features_layout, EFeatureType_Categorical)
+    cdef TVector[feature_mask_elem] is_text_feature_mask = _get_is_feature_type_mask(features_layout, EFeatureType_Text)
+    cdef TVector[feature_mask_elem] is_embedding_feature_mask = _get_is_feature_type_mask(features_layout, EFeatureType_Embedding)
     cdef ui32 doc_count = data_frame.height
 
     cdef Py_ssize_t src_flat_feature_idx
@@ -3459,12 +3470,13 @@ def _set_data_np(
     cdef ui32 main_feature_count = <ui32>(main_feature_values.shape[1] if main_feature_values is not None else 0)
     cdef ui32 cat_feature_count = features_layout[0].GetCatFeatureCount()
 
-    cdef TVector[bool_t] is_cat_feature_mask
+    # HIP: ui8 avoids clang libc++ vector<bool> proxy refs in Cython bindings.
+    cdef TVector[feature_mask_elem] is_cat_feature_mask
     if (cat_feature_values is None) and (cat_feature_count > 0):
         # there are some cat features in main_feature_values
         is_cat_feature_mask = _get_is_feature_type_mask(features_layout, EFeatureType_Categorical)
 
-    cdef TConstArrayRef[bool_t] is_cat_feature_ref = <TConstArrayRef[bool_t]>is_cat_feature_mask
+    cdef TConstArrayRef[feature_mask_elem] is_cat_feature_ref = <TConstArrayRef[feature_mask_elem]>is_cat_feature_mask
 
     cdef future[void] main_features_future
 
@@ -3532,7 +3544,7 @@ cdef inline _add_single_feature_value_from_scipy_sparse(
     ui32 feature_idx,
     value,
     bool_t is_float_value,
-    TConstArrayRef[bool_t] is_cat_feature_mask,
+    TConstArrayRef[feature_mask_elem] is_cat_feature_mask,
     TString * factor_string_buf,
     IRawObjectsOrderDataVisitor * builder_visitor
 ):
@@ -3551,7 +3563,7 @@ cdef inline _add_single_feature_value_from_scipy_sparse(
 cdef _set_data_from_scipy_bsr_sparse(
     data,
     TConstArrayRef[ui32] main_data_feature_idx_to_dst_feature_idx,
-    TConstArrayRef[bool_t] is_cat_feature_mask,
+    TConstArrayRef[feature_mask_elem] is_cat_feature_mask,
     IRawObjectsOrderDataVisitor * builder_visitor
 ):
     data_shape = np.shape(data)
@@ -3604,7 +3616,7 @@ cdef _set_data_from_scipy_coo_sparse(
     row,
     col,
     TConstArrayRef[ui32] main_data_feature_idx_to_dst_feature_idx,
-    TConstArrayRef[bool_t] is_cat_feature_mask,
+    TConstArrayRef[feature_mask_elem] is_cat_feature_mask,
     IRawObjectsOrderDataVisitor * builder_visitor
 ):
     cdef int nonzero_count = data.shape[0]
@@ -3650,8 +3662,8 @@ def _set_data_from_scipy_csr_sparse(
     )
     cdef TConstArrayRef[ui32] main_data_feature_idx_to_dst_feature_idx_ref = <TConstArrayRef[ui32]>main_data_feature_idx_to_dst_feature_idx
 
-    cdef TVector[bool_t] is_cat_feature_mask = _get_is_feature_type_mask(py_builder_visitor.features_layout, EFeatureType_Categorical)
-    cdef TConstArrayRef[bool_t] is_cat_feature_ref = <TConstArrayRef[bool_t]>is_cat_feature_mask
+    cdef TVector[feature_mask_elem] is_cat_feature_mask = _get_is_feature_type_mask(py_builder_visitor.features_layout, EFeatureType_Categorical)
+    cdef TConstArrayRef[feature_mask_elem] is_cat_feature_ref = <TConstArrayRef[feature_mask_elem]>is_cat_feature_mask
 
     def cast_to_nparray(array, dtype):
         if isinstance(array, np.ndarray) and array.dtype == dtype and array.flags.c_contiguous:
@@ -3793,7 +3805,7 @@ def _set_data_from_scipy_csr_sparse(
 cdef _set_data_from_scipy_lil_sparse(
     data,
     TConstArrayRef[ui32] main_data_feature_idx_to_dst_feature_idx,
-    TConstArrayRef[bool_t] is_cat_feature_mask,
+    TConstArrayRef[feature_mask_elem] is_cat_feature_mask,
     IRawObjectsOrderDataVisitor * builder_visitor
 ):
     data_shape = np.shape(data)
@@ -3837,9 +3849,9 @@ cdef _set_objects_order_data_scipy_sparse_matrix(
     _set_cat_features_default_values_for_scipy_sparse(features_layout, builder_visitor)
 
     cdef TVector[ui32] main_data_feature_idx_to_dst_feature_idx = _get_main_data_feature_idx_to_dst_feature_idx(features_layout, has_separate_embedding_features_data)
-    cdef TVector[bool_t] is_cat_feature_mask = _get_is_feature_type_mask(features_layout, EFeatureType_Categorical)
-    cdef TVector[bool_t] is_text_feature_mask = _get_is_feature_type_mask(features_layout, EFeatureType_Text)
-    cdef TVector[bool_t] is_embedding_feature_mask = _get_is_feature_type_mask(features_layout, EFeatureType_Embedding)
+    cdef TVector[feature_mask_elem] is_cat_feature_mask = _get_is_feature_type_mask(features_layout, EFeatureType_Categorical)
+    cdef TVector[feature_mask_elem] is_text_feature_mask = _get_is_feature_type_mask(features_layout, EFeatureType_Text)
+    cdef TVector[feature_mask_elem] is_embedding_feature_mask = _get_is_feature_type_mask(features_layout, EFeatureType_Embedding)
     if features_layout.GetTextFeatureCount():
         raise CatBoostError('Text features reading is not supported in sparse matrix format')
     if (not has_separate_embedding_features_data) and features_layout.GetEmbeddingFeatureCount():
@@ -3849,7 +3861,7 @@ cdef _set_objects_order_data_scipy_sparse_matrix(
         _set_data_from_scipy_bsr_sparse(
             data,
             <TConstArrayRef[ui32]>main_data_feature_idx_to_dst_feature_idx,
-            <TConstArrayRef[bool_t]>is_cat_feature_mask,
+            <TConstArrayRef[feature_mask_elem]>is_cat_feature_mask,
             builder_visitor
         )
     elif isinstance(data, scipy.sparse.coo_matrix):
@@ -3858,7 +3870,7 @@ cdef _set_objects_order_data_scipy_sparse_matrix(
             data.row,
             data.col,
             <TConstArrayRef[ui32]>main_data_feature_idx_to_dst_feature_idx,
-            <TConstArrayRef[bool_t]>is_cat_feature_mask,
+            <TConstArrayRef[feature_mask_elem]>is_cat_feature_mask,
             builder_visitor
         )
     elif isinstance(data, scipy.sparse.csr_matrix):
@@ -3878,14 +3890,14 @@ cdef _set_objects_order_data_scipy_sparse_matrix(
             coo_matrix.row,
             coo_matrix.col,
             <TConstArrayRef[ui32]>main_data_feature_idx_to_dst_feature_idx,
-            <TConstArrayRef[bool_t]>is_cat_feature_mask,
+            <TConstArrayRef[feature_mask_elem]>is_cat_feature_mask,
             builder_visitor
         )
     elif isinstance(data, scipy.sparse.lil_matrix):
         _set_data_from_scipy_lil_sparse(
             data,
             <TConstArrayRef[ui32]>main_data_feature_idx_to_dst_feature_idx,
-            <TConstArrayRef[bool_t]>is_cat_feature_mask,
+            <TConstArrayRef[feature_mask_elem]>is_cat_feature_mask,
             builder_visitor
         )
 
@@ -3907,7 +3919,7 @@ def _set_features_order_data_scipy_sparse_csc_matrix(
     py_builder_visitor.get_features_layout(&features_layout)
 
     cdef TVector[ui32] main_data_feature_idx_to_dst_feature_idx = _get_main_data_feature_idx_to_dst_feature_idx(features_layout, has_separate_embedding_features_data)
-    cdef TVector[bool_t] is_cat_feature_mask = _get_is_feature_type_mask(features_layout, EFeatureType_Categorical)
+    cdef TVector[feature_mask_elem] is_cat_feature_mask = _get_is_feature_type_mask(features_layout, EFeatureType_Categorical)
 
     cdef np.float32_t float_default_value = 0.0
     cdef TString cat_default_value = to_arcadia_string(b"0")
@@ -4035,9 +4047,9 @@ cdef _set_data_from_generic_matrix(
     cdef int cat_feature_idx
 
     cdef TVector[ui32] main_data_feature_idx_to_dst_feature_idx = _get_main_data_feature_idx_to_dst_feature_idx(features_layout, has_separate_embedding_features_data)
-    cdef TVector[bool_t] is_cat_feature_mask = _get_is_feature_type_mask(features_layout, EFeatureType_Categorical)
-    cdef TVector[bool_t] is_text_feature_mask = _get_is_feature_type_mask(features_layout, EFeatureType_Text)
-    cdef TVector[bool_t] is_embedding_feature_mask = _get_is_feature_type_mask(features_layout, EFeatureType_Embedding)
+    cdef TVector[feature_mask_elem] is_cat_feature_mask = _get_is_feature_type_mask(features_layout, EFeatureType_Categorical)
+    cdef TVector[feature_mask_elem] is_text_feature_mask = _get_is_feature_type_mask(features_layout, EFeatureType_Text)
+    cdef TVector[feature_mask_elem] is_embedding_feature_mask = _get_is_feature_type_mask(features_layout, EFeatureType_Embedding)
     cdef TVector[ui32] embedding_dimensions
 
     # TODO(akhropov): make yresize accessible in Cython
@@ -4510,7 +4522,7 @@ cdef class _PoolBase:
         py_builder_visitor.set_features_layout(data_meta_info.FeaturesLayout.Get())
 
         cdef TVector[ui32] main_data_feature_idx_to_dst_feature_idx
-        cdef TVector[bool_t] cat_features_mask # used only if data is np.ndarray
+        cdef TVector[feature_mask_elem] cat_features_mask # used only if data is np.ndarray
 
         cdef TVector[TIntrusivePtr[IResourceHolder]] resource_holders
         builder_visitor[0].Start(
@@ -4578,9 +4590,9 @@ cdef class _PoolBase:
             _set_features_order_data_ndarray(
                 data,
                 <ui32[:main_data_feature_idx_to_dst_feature_idx.size()]>main_data_feature_idx_to_dst_feature_idx.data(),
-                <bool_t[:features_layout[0].GetExternalFeatureCount()]>cat_features_mask.data(),
-                <bool_t[:features_layout[0].GetExternalFeatureCount()]>text_features_mask.data(),
-                <bool_t[:features_layout[0].GetExternalFeatureCount()]>embedding_features_mask.data(),
+                <feature_mask_elem[:features_layout[0].GetExternalFeatureCount()]>cat_features_mask.data(),
+                <feature_mask_elem[:features_layout[0].GetExternalFeatureCount()]>text_features_mask.data(),
+                <feature_mask_elem[:features_layout[0].GetExternalFeatureCount()]>embedding_features_mask.data(),
                 py_builder_visitor
             )
 
@@ -7121,3 +7133,7 @@ include "_grid_creator.pxi"
 include "_monoforest.pxi"
 include "_text_processing.pxi"
 include "_carry.pxi"
+
+
+
+

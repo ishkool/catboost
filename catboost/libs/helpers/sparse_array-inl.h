@@ -14,6 +14,17 @@
 #include <util/system/compiler.h>
 #include <util/system/yassert.h>
 
+// ROCm/HIP build was switched from std::popcount (C++20) to the gcc/clang builtin
+// because clang's libc++ on ROCm did not expose <bit> reliably. Keep the original
+// std::popcount path for the CUDA build via this macro.
+#if defined(__HIP_PLATFORM_AMD__)
+    // ROCm clang's libc++ does not reliably expose <bit>::std::popcount in all
+    // translation units, so route through the compiler builtin instead.
+    #define CATBOOST_POPCOUNTLL(x) (__builtin_popcountll((x)))
+#else
+    #define CATBOOST_POPCOUNTLL(x) (std::popcount((x)))
+#endif
+
 #include <algorithm>
 #include <bit>
 
@@ -210,7 +221,7 @@ namespace NCB {
     TSize TSparseSubsetHybridIndex<TSize>::GetSize() const {
         TSize result = 0;
         for (auto blockBitmap : BlockBitmaps) {
-            result += std::popcount(blockBitmap);
+            result += CATBOOST_POPCOUNTLL(blockBitmap);
         }
         return result;
     }
@@ -278,7 +289,7 @@ namespace NCB {
             return TConstArrayRef<TSize>();
         }
 
-        size_t inBlockSize = (size_t)std::popcount((*Data.BlockBitmapsCurrent) >> Data.InBlockIdx);
+        size_t inBlockSize = (size_t)CATBOOST_POPCOUNTLL((*Data.BlockBitmapsCurrent) >> Data.InBlockIdx);
         if (inBlockSize == 0) {
             ++Data.BlockIndicesCurrent;
             if (Data.BlockIndicesCurrent == Data.BlockIndicesEnd) {
@@ -286,7 +297,7 @@ namespace NCB {
             }
             ++Data.BlockBitmapsCurrent;
             Data.InBlockIdx = 0;
-            inBlockSize = (size_t)std::popcount(*Data.BlockBitmapsCurrent);
+            inBlockSize = (size_t)CATBOOST_POPCOUNTLL(*Data.BlockBitmapsCurrent);
         }
 
         const auto dstBlockSize = Min(maxBlockSize, inBlockSize);
@@ -332,9 +343,9 @@ namespace NCB {
             const auto upperBoundInBlock = Min(srcBlockEnd, upperBound) - srcBlockStart;
             ui32 dstBlockSize = 0;
             if (upperBoundInBlock == TSparseSubsetHybridIndex<TSize>::BLOCK_SIZE) {
-                dstBlockSize = std::popcount((*Data.BlockBitmapsCurrent) >> Data.InBlockIdx);
+                dstBlockSize = CATBOOST_POPCOUNTLL((*Data.BlockBitmapsCurrent) >> Data.InBlockIdx);
             } else {
-                dstBlockSize = std::popcount(
+                dstBlockSize = CATBOOST_POPCOUNTLL(
                     (*Data.BlockBitmapsCurrent & ((1ULL << upperBoundInBlock) - 1)) >> Data.InBlockIdx
                 );
             }
@@ -485,12 +496,12 @@ namespace NCB {
         TSize* nonDefaultBegin) {
 
         TDoubleArrayIterator<const TSize, const TSize> blocksBegin{
-            sparseSubsetBlocks.BlockStarts.begin(),
-            sparseSubsetBlocks.BlockLengths.begin()};
+            sparseSubsetBlocks.BlockStarts.data(),
+            sparseSubsetBlocks.BlockLengths.data()};
 
         TDoubleArrayIterator<const TSize, const TSize> blocksEnd{
-            sparseSubsetBlocks.BlockStarts.end(),
-            sparseSubsetBlocks.BlockLengths.end()};
+            sparseSubsetBlocks.BlockStarts.data() + (sparseSubsetBlocks.BlockStarts.end() - sparseSubsetBlocks.BlockStarts.begin()),
+            sparseSubsetBlocks.BlockLengths.data() + (sparseSubsetBlocks.BlockLengths.end() - sparseSubsetBlocks.BlockLengths.begin())};
 
         TDoubleArrayIterator<const TSize, const TSize> blockIterator
             = LowerBound(
@@ -571,19 +582,20 @@ namespace NCB {
         const auto& blockIndices = sparseSubsetHybridIndex.BlockIndices;
         const auto& blockBitmaps = sparseSubsetHybridIndex.BlockBitmaps;
 
-        const TSize* blockIndicesCurrent
+        auto blockIndicesCurrentIter
             = LowerBound(blockIndices.begin(), blockIndices.end(), beginBlockIdx);
+        const TSize* blockIndicesCurrent = blockIndices.data() + (blockIndicesCurrentIter - blockIndices.begin());
 
-        const TSize blockOffset = blockIndicesCurrent - blockIndices.begin();
-        const ui64* blockBitmapsCurrent = blockBitmaps.begin() + blockOffset;
+        const TSize blockOffset = blockIndicesCurrent - blockIndices.data();
+        const ui64* blockBitmapsCurrent = blockBitmaps.data() + blockOffset;
 
         TSize inBlockIdx;
         TSize nonDefaultInBlockBeforeBegin;
-        if ((blockIndicesCurrent != blockIndices.end()) && (beginBlockIdx == *blockIndicesCurrent)) {
+        if ((blockIndicesCurrent != blockIndices.data() + blockIndices.size()) && (beginBlockIdx == *blockIndicesCurrent)) {
             inBlockIdx = begin % TSparseSubsetHybridIndex<TSize>::BLOCK_SIZE;
             if (*blockBitmapsCurrent >> inBlockIdx) {
                 nonDefaultInBlockBeforeBegin
-                    = (TSize)std::popcount((*blockBitmapsCurrent) & ((1ULL << inBlockIdx) - 1));
+                    = (TSize)CATBOOST_POPCOUNTLL((*blockBitmapsCurrent) & ((1ULL << inBlockIdx) - 1));
             } else {
                 ++blockIndicesCurrent;
                 ++blockBitmapsCurrent;
@@ -597,13 +609,13 @@ namespace NCB {
 
         *nonDefaultBegin
             = std::accumulate(
-                blockBitmaps.begin(),
+                blockBitmaps.data(),
                 blockBitmapsCurrent,
                 nonDefaultInBlockBeforeBegin,
-                [] (TSize sum, ui64 element) { return sum + (TSize)std::popcount(element); });
+                [] (TSize sum, ui64 element) { return sum + (TSize)CATBOOST_POPCOUNTLL(element); });
 
         iteratorData->BlockIndicesCurrent = blockIndicesCurrent;
-        iteratorData->BlockIndicesEnd = blockIndices.end();
+        iteratorData->BlockIndicesEnd = blockIndices.data() + blockIndices.size();
         iteratorData->BlockBitmapsCurrent = blockBitmapsCurrent;
         iteratorData->InBlockIdx = inBlockIdx;
     }
@@ -715,8 +727,8 @@ namespace NCB {
     template <class TSize>
     TSparseArrayIndexing<TSize> TSparseSubsetBlocksBuilder<TSize>::Build(TMaybe<TSize> size) {
         if (NonOrdered && (BlockStarts.size() > 1)) {
-            TDoubleArrayIterator<TSize, TSize> beginIter{BlockStarts.begin(), BlockLengths.begin()};
-            TDoubleArrayIterator<TSize, TSize> endIter{BlockStarts.end(), BlockLengths.end()};
+            TDoubleArrayIterator<TSize, TSize> beginIter{BlockStarts.data(), BlockLengths.data()};
+            TDoubleArrayIterator<TSize, TSize> endIter{BlockStarts.data() + BlockStarts.size(), BlockLengths.data() + BlockLengths.size()};
 
             Sort(beginIter, endIter, [](auto lhs, auto rhs) { return lhs.first < rhs.first; });
 
@@ -767,8 +779,8 @@ namespace NCB {
     template <class TSize>
     TSparseArrayIndexing<TSize> TSparseSubsetHybridIndexBuilder<TSize>::Build(TMaybe<TSize> size) {
         if (NonOrdered && (BlockIndices.size() > 1)) {
-            TDoubleArrayIterator<TSize, ui64> beginIter{BlockIndices.begin(), BlockBitmaps.begin()};
-            TDoubleArrayIterator<TSize, ui64> endIter{BlockIndices.end(), BlockBitmaps.end()};
+            TDoubleArrayIterator<TSize, ui64> beginIter{BlockIndices.data(), BlockBitmaps.data()};
+            TDoubleArrayIterator<TSize, ui64> endIter{BlockIndices.data() + BlockIndices.size(), BlockBitmaps.data() + BlockBitmaps.size()};
 
             Sort(beginIter, endIter, [](auto lhs, auto rhs) { return lhs.first < rhs.first; });
 
@@ -1417,3 +1429,6 @@ namespace NCB {
     }
 
 }
+
+
+

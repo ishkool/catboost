@@ -17,7 +17,9 @@
 #include <util/system/defaults.h>
 
 #include <utility>
+#if !defined(__HIP_PLATFORM_AMD__)
 #include <stlfwd>
+#endif
 
 // NOTE: Check StringSplitter below to get more convenient split string interface.
 
@@ -1129,3 +1131,4 @@ template <class String, std::enable_if_t<!std::is_pointer<std::remove_reference_
 auto StringSplitter(String&& s) {
     return ::NStringSplitPrivate::MakeStringSplitter(std::move(s));
 }
+

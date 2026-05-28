@@ -8,7 +8,7 @@ namespace NFlatHash {
 class TLinearProbing {
 public:
     template <class SizeFitter, class F>
-    static auto FindBucket(SizeFitter sf, size_t idx, size_t sz, F f) {
+    static auto FindBucket(SizeFitter sf, std::size_t idx, std::size_t sz, F f) {
         idx = sf.EvalIndex(idx, sz);
         while (!f(idx)) {
             idx = sf.EvalIndex(++idx, sz);
@@ -20,9 +20,9 @@ public:
 class TQuadraticProbing {
 public:
     template <class SizeFitter, class F>
-    static auto FindBucket(SizeFitter sf, size_t idx, size_t sz, F f) {
+    static auto FindBucket(SizeFitter sf, std::size_t idx, std::size_t sz, F f) {
         idx = sf.EvalIndex(idx, sz);
-        size_t k = 0;
+        std::size_t k = 0;
         while (!f(idx)) {
             idx = sf.EvalIndex(idx + 2 * ++k - 1, sz);
         }
@@ -33,9 +33,9 @@ public:
 class TDenseProbing {
 public:
     template <class SizeFitter, class F>
-    static auto FindBucket(SizeFitter sf, size_t idx, size_t sz, F f) {
+    static auto FindBucket(SizeFitter sf, std::size_t idx, std::size_t sz, F f) {
         idx = sf.EvalIndex(idx, sz);
-        size_t k = 0;
+        std::size_t k = 0;
         while (!f(idx)) {
             idx = sf.EvalIndex(idx + ++k, sz);
         }
@@ -44,3 +44,4 @@ public:
 };
 
 }  // NFlatHash
+

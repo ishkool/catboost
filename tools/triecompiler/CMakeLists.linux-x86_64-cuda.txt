@@ -24,6 +24,10 @@ target_link_libraries(triecompiler PUBLIC
   build-cow-on
   library-cpp-cpuid_check
   tools-triecompiler-lib
+  stdc++
+  gcc_s
+  c
+  pthread
 )
 
 target_allocator(triecompiler
@@ -37,9 +41,6 @@ target_link_options(triecompiler PRIVATE
   -Wl,--no-as-needed
   -fPIC
   -fPIC
-  -lpthread
-  -lrt
-  -ldl
 )
 
 target_sources(triecompiler PRIVATE
@@ -48,3 +49,4 @@ target_sources(triecompiler PRIVATE
 
 
 vcs_info(triecompiler)
+

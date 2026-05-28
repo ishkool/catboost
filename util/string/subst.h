@@ -2,7 +2,9 @@
 
 #include <util/generic/fwd.h>
 
+#if !defined(__HIP_PLATFORM_AMD__)
 #include <stlfwd>
+#endif
 
 /* Replace all occurences of substring `what` with string `with` starting from position `from`.
  *
@@ -54,3 +56,4 @@ Y_WARN_UNUSED_RESULT TStringType SubstGlobalCopy(TStringType result, TPatternTyp
     SubstGlobal(result, what, with, from);
     return result;
 }
+

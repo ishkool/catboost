@@ -1,6 +1,12 @@
 #pragma once
 #include <catboost/cuda/cuda_util/kernel/kernel_helpers.cuh>
+
+#if defined(__HIP_PLATFORM_AMD__)
+#include <hipcub/device/device_scan.hpp>
+namespace cub = hipcub;
+#else
 #include <cub/device/device_scan.cuh>
+#endif
 
 namespace NKernel {
 
@@ -181,6 +187,7 @@ namespace NKernel {
 
 
 }
+
 
 
 

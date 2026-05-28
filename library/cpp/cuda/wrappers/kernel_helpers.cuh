@@ -1,9 +1,18 @@
 #pragma once
 
 #include "kernel.cuh"
+
+#if defined(__HIP_PLATFORM_AMD__)
+// HIP/ROCm uses hipcub instead of cub
+#include <hipcub/thread/thread_load.hpp>
+#include <hipcub/thread/thread_store.hpp>
+#include <hip/hip_cooperative_groups.h>
+#else
+// CUDA uses cub
 #include <cub/thread/thread_load.cuh>
 #include <cub/thread/thread_store.cuh>
 #include <cooperative_groups.h>
+#endif
 
 #include <util/system/types.h>
 
@@ -81,7 +90,7 @@ __forceinline__ __device__ T WarpReduce(int x, T val, int reduceSize, TOp op = T
     __syncwarp();
     #pragma unroll
     for (int s = reduceSize >> 1; s > 0; s >>= 1) {
-        val = op(val, __shfl_down_sync(0xFFFFFFFF, val, s));
+        val = op(val, __shfl_down_sync(CATBOOST_FULL_WARP_MASK, val, s));
     }
     return val;
 }
@@ -141,23 +150,39 @@ __forceinline__ __device__ T TileReduce(cooperative_groups::thread_block_tile<Ti
 
 template <typename T, typename TOffset = int>
 __forceinline__ __device__ T Ldg(const T* data, TOffset offset = 0) {
+#if defined(__HIP_PLATFORM_AMD__)
+    return hipcub::ThreadLoad<hipcub::LOAD_LDG>(data + offset);
+#else
     return cub::ThreadLoad<cub::LOAD_LDG>(data + offset);
+#endif
 }
 
 
 template <typename T>
 __forceinline__ __device__ T StreamLoad(const T* data) {
+#if defined(__HIP_PLATFORM_AMD__)
+    return hipcub::ThreadLoad<hipcub::LOAD_CS>(data);
+#else
     return cub::ThreadLoad<cub::LOAD_CS>(data);
+#endif
 }
 
 template <typename T>
 __forceinline__ __device__ void WriteThrough(T* data, T val) {
+#if defined(__HIP_PLATFORM_AMD__)
+    hipcub::ThreadStore<hipcub::STORE_WT>(data, val);
+#else
     cub::ThreadStore<cub::STORE_WT>(data, val);
+#endif
 }
 
 template <typename T>
 __forceinline__ __device__ void StoreCS(T* data, T val) {
+#if defined(__HIP_PLATFORM_AMD__)
+    hipcub::ThreadStore<hipcub::STORE_CS>(data, val);
+#else
     cub::ThreadStore<cub::STORE_CS>(data, val);
+#endif
 }
 
 template <class T>
@@ -240,7 +265,7 @@ __forceinline__ __device__ TReduceType TileReduce4(cooperative_groups::thread_bl
 
 template <int TileSize, class TOp = TCudaAdd<float>>
 __forceinline__ __device__ float4 WarpReduce4(const float4 threadValue) {
-    constexpr unsigned FULL_MASK = 0xffffffff;
+    #define FULL_MASK CATBOOST_FULL_WARP_MASK
     TOp op;
     __syncwarp();
     float4 val = threadValue;
@@ -545,7 +570,7 @@ __forceinline__ __device__ void WarpReduceN(int x, volatile T* data, int reduceS
     for (int s = reduceSize >> 1; s > 0; s >>= 1) {
         #pragma unroll
         for (int k = 0; k < N; ++k) {
-            val[k] = op(val[k], __shfl_down_sync(0xFFFFFF, val[k], s));
+            val[k] = op(val[k], __shfl_down_sync(CATBOOST_FULL_WARP_MASK, val[k], s));
         }
     }
 
@@ -829,3 +854,5 @@ __forceinline__ __device__ float2 Sqrt2(float2 left) {
     result.y = sqrtf(left.y);
     return result;
 }
+
+

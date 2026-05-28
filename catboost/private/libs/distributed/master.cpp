@@ -415,8 +415,16 @@ int MapGetRedundantSplitIdx(TLearnContext* ctx) {
 
     for (size_t workerIdx = 1; workerIdx < validWorkersSize; ++workerIdx) {
         for (int leafIdx = 0; leafIdx < isLeafEmptyFromAllWorkers[0].ysize(); ++leafIdx) {
+#if defined(__HIP_PLATFORM_AMD__)
+            // ROCm/HIP: vector<bool> proxy reference cannot accept compound assignment chain;
+            // route through a real bool temporary.
+            bool isEmpty = isLeafEmptyFromAllWorkers[validWorkers[0]][leafIdx];
+            isEmpty &= isLeafEmptyFromAllWorkers[validWorkers[workerIdx]][leafIdx];
+            isLeafEmptyFromAllWorkers[validWorkers[0]][leafIdx] = isEmpty;
+#else
             isLeafEmptyFromAllWorkers[validWorkers[0]][leafIdx]
                 &= isLeafEmptyFromAllWorkers[validWorkers[workerIdx]][leafIdx];
+#endif
         }
     }
     return GetRedundantSplitIdx(isLeafEmptyFromAllWorkers[validWorkers[0]]);
@@ -957,3 +965,4 @@ void MapGetApprox(
         }
     }
 }
+

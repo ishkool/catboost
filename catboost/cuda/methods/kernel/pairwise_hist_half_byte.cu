@@ -1,7 +1,13 @@
 #include "pairwise_hist.cuh"
 #include "split_properties_helpers.cuh"
 #include "compute_pair_hist_loop.cuh"
+
+#if defined(__HIP_PLATFORM_AMD__)
+#include <hip/hip_cooperative_groups.h>
+#else
 #include <cooperative_groups.h>
+#endif
+
 #include <library/cpp/cuda/wrappers/arch.h>
 #include <catboost/cuda/cuda_util/kernel/instructions.cuh>
 #include <catboost/cuda/cuda_util/kernel/kernel_helpers.cuh>
@@ -349,7 +355,7 @@ namespace NKernel {
             numBlocks.x *= blockPerFeatureMultiplier;
 
             #define NB_HIST(IS_FULL)   \
-            ComputeSplitPropertiesHalfBytePairs < blockSize, IS_FULL > << <numBlocks, blockSize, 0, stream>>>(\
+            ComputeSplitPropertiesHalfBytePairs<blockSize, IS_FULL><<<numBlocks, blockSize, 0, stream>>>(\
                                                   features, featureCount, compressedIndex,  pairs,\
                                                   weight, partition, histLineSize, histogram);
 
@@ -364,3 +370,4 @@ namespace NKernel {
 
 
 }
+

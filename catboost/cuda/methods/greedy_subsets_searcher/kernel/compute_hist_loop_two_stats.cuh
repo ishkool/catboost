@@ -203,7 +203,7 @@ namespace NKernel {
                         localStats2[k] = Ldg(stats + statsLineSize, warpSize * k);
                     }
 
-                    hist.AddPoints<N>(localBins, localStats1, localStats2);
+                    hist.template AddPoints<N>(localBins, localStats1, localStats2);
 
                     bins += stripeSize;
                     stats += stripeSize;
@@ -256,7 +256,7 @@ namespace NKernel {
                     stats += stripeSize;
                     indices += stripeSize;
 
-                    hist.AddPoints<N>(localBins, localStats1, localStats2);
+                    hist.template AddPoints<N>(localBins, localStats1, localStats2);
                 }
             }
 
@@ -762,3 +762,4 @@ namespace NKernel {
 
 
 }
+

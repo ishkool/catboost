@@ -1166,7 +1166,12 @@ void TStochasticRankError::CalcMonteCarloEstimateForSingleQueryPermutation(
             TargetMetric == ELossFunction::FilteredDCG ? 0 : (noiseSum - (score - approx)) / (count - 1)
         );
         const double sigma = Sigma * (
+#if defined(__HIP_PLATFORM_AMD__)
+            // ROCm/HIP: std::sqrtl is not exposed in clang's libc++ <cmath> on this platform.
+            TargetMetric == ELossFunction::FilteredDCG ? 1 : sqrtl(count / (count - 1.0))
+#else
             TargetMetric == ELossFunction::FilteredDCG ? 1 : std::sqrtl(count / (count - 1.0))
+#endif
         );
         double derSum = 0.0;
         if (EqualToOneOf(TargetMetric, ELossFunction::DCG, ELossFunction::NDCG, ELossFunction::PFound, ELossFunction::FilteredDCG, ELossFunction::ERR)) {
@@ -1577,3 +1582,4 @@ double TStochasticRankError::CalcDCG(const TVector<float>& sortedTargets, const 
     }
     return result;
 }
+

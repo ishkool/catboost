@@ -211,7 +211,13 @@ namespace NCatboostOptions {
 
         void CheckForUnseenKeys() {
             for (const auto& keyVal : Source.GetMap()) {
+#if defined(__HIP_PLATFORM_AMD__)
+                // ROCm/HIP: some libc++ configs on ROCm lack the C++20 ::contains() on the
+                // ordered/unordered hash containers; fall back to count() > 0.
+                CB_ENSURE(ValidKeys.count(keyVal.first) > 0 || UnimplementedKeys.count(keyVal.first) > 0, "Invalid parameter: " << keyVal.first << Endl << Source);
+#else
                 CB_ENSURE(ValidKeys.contains(keyVal.first) || UnimplementedKeys.contains(keyVal.first), "Invalid parameter: " << keyVal.first << Endl << Source);
+#endif
             }
         }
 
@@ -267,3 +273,4 @@ namespace NCatboostOptions {
         saver.SaveMany(fields...);
     };
 }
+

@@ -29,6 +29,12 @@ target_link_libraries(flatc PUBLIC
   contrib-libs-linux-headers
   contrib-libs-cxxsupp
   build-cow-on
+  m
+  c++abi
+  stdc++
+  gcc_s
+  c
+  pthread
 )
 
 target_allocator(flatc
@@ -42,7 +48,6 @@ target_link_options(flatc PRIVATE
   -Wl,--no-as-needed
   -fPIC
   -fPIC
-  -lpthread
 )
 
 target_sources(flatc PRIVATE
@@ -88,3 +93,9 @@ target_sources(flatc PRIVATE
 
 
 vcs_info(flatc)
+
+
+
+
+
+

@@ -74,7 +74,7 @@ namespace NKernel {
                     stat += stripeSize;
                 }
                 accumResult += (double)sum.x + (double)sum.y + (double)sum.z + (double)sum.w;
-                sum = {0};
+                sum.x = sum.y = sum.z = sum.w = 0;
             }
             #pragma unroll N
             for (; i < iterCount; ++i) {
@@ -464,3 +464,4 @@ namespace NKernel {
         return CeilDivide(2 * TArchProps::SMCount(), (int)statCount) * statCount * count;
     }
 }
+

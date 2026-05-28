@@ -22,6 +22,10 @@ target_link_libraries(rescompiler PUBLIC
   build-cow-on
   library-cpp-cpuid_check
   library-cpp-resource
+  stdc++
+  gcc_s
+  c
+  pthread
 )
 
 target_allocator(rescompiler
@@ -35,9 +39,6 @@ target_link_options(rescompiler PRIVATE
   -Wl,--no-as-needed
   -fPIC
   -fPIC
-  -lpthread
-  -lrt
-  -ldl
 )
 
 target_sources(rescompiler PRIVATE
@@ -46,3 +47,4 @@ target_sources(rescompiler PRIVATE
 
 
 vcs_info(rescompiler)
+

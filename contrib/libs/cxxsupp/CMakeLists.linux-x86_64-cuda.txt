@@ -12,16 +12,28 @@
 # Please refer to the build instructions in the repository for more information about manual
 # changes in this file.
 
-add_subdirectory(libcxxcuda11)
-add_subdirectory(libcxxabi-parts)
-add_subdirectory(libcxxrt)
+# For ROCm builds: Don't build or link libcxxcuda11 (use system C++ library instead)
+if (NOT HAVE_ROCM)
+  add_subdirectory(libcxxcuda11)
+  add_subdirectory(libcxxabi-parts)
+  add_subdirectory(libcxxrt)
+endif()
+
 add_subdirectory(builtins)
 
 add_library(contrib-libs-cxxsupp INTERFACE)
 
+if (HAVE_ROCM)
+  target_link_libraries(contrib-libs-cxxsupp INTERFACE
+    contrib-libs-linux-headers
+  )
+else()
+  target_link_libraries(contrib-libs-cxxsupp INTERFACE
+    contrib-libs-linux-headers
+    libs-cxxsupp-libcxxcuda11
+  )
+endif()
 
-target_link_libraries(contrib-libs-cxxsupp INTERFACE
-  contrib-libs-linux-headers
-  libs-cxxsupp-libcxxcuda11
-)
+
+
 

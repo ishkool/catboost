@@ -35,6 +35,21 @@ enable_testing()
 # Can't set it in cuda.cmake because of CMake policy subdirectory stack rules
 cmake_policy(SET CMP0104 OLD)
 
+# For ROCm builds, set HIP flags globally before any targets are defined
+# This ensures all files (including contrib libraries) know we're using HIP, not CUDA
+if (HAVE_ROCM)
+  message(STATUS "=== Global ROCm/HIP flags enabled ===")
+  # Only define __HIP_PLATFORM_AMD__ globally for .cpp files
+  # __HIP__=1 is ONLY defined for HIP language files in CMAKE_HIP_FLAGS (cuda.cmake)
+  # This prevents __HIP_CLANG_ONLY__ from being set to 1 in .cpp files,
+  # which would include device function headers with AMD GPU intrinsics
+  add_definitions(-D__HIP_PLATFORM_AMD__)
+  
+  # Workaround for ROCm bug: hip_runtime_api.h uses UINT_MAX without including limits.h
+  # Define these macros globally
+  add_definitions(-DUINT_MAX=4294967295U -DINT_MAX=2147483647 -DCHAR_BIT=8)
+endif()
+
 include(cmake/global_flags.cmake)
 include(cmake/global_vars.cmake)
 include(cmake/archive.cmake)
@@ -77,4 +92,6 @@ elseif (ANDROID AND CMAKE_ANDROID_ARCH STREQUAL "x86")
 elseif (ANDROID AND CMAKE_ANDROID_ARCH STREQUAL "x86_64")
   include(CMakeLists.android-x86_64.txt)
 endif()
+
+
 

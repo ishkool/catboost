@@ -27,6 +27,7 @@ target_link_libraries(contrib-restricted-abseil-cpp PUBLIC
   contrib-libs-linux-headers
   contrib-libs-cxxsupp
   cpp-sanitizer-include
+  m
 )
 
 target_sources(contrib-restricted-abseil-cpp PRIVATE

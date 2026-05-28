@@ -21,6 +21,18 @@ get_built_tool_path(
 
 add_library(catboost-cuda-data)
 
+if (HAVE_ROCM)
+  if(${CMAKE_VERSION} VERSION_LESS "3.17.0")
+      message(FATAL_ERROR "Build with HIP requires at least cmake 3.17.0")
+  endif()
+
+  enable_language(HIP)
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -D__HIP_PLATFORM_AMD__")
+
+
+  find_package(HIP REQUIRED)
+  target_include_directories(catboost-cuda-data PRIVATE ${HIP_INCLUDE_DIRS})
+endif()
 
 target_link_libraries(catboost-cuda-data PUBLIC
   contrib-libs-linux-headers

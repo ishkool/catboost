@@ -5,9 +5,16 @@
 
 #include <library/cpp/cuda/wrappers/arch.h>
 
+#if defined(__HIP_PLATFORM_AMD__)
+#include <hipcub/hipcub.hpp>
+#include <hipcub/block/block_radix_sort.hpp>
+#include <hipcub/block/block_scan.hpp>
+namespace cub = hipcub;
+#else
 #include <cub/cub.cuh>
 #include <cub/block/block_radix_sort.cuh>
 #include <cub/block/block_scan.cuh>
+#endif
 
 
 namespace NKernel {
@@ -203,6 +210,16 @@ __global__ void MvsBootstrapRadixSortImpl(
 
     const int idx = blockOffset + threadIdx.x;
     const float inf = sqrtf(std::numeric_limits<float>::max()) - 2 * lambda;
+#if defined(__HIP_PLATFORM_AMD__)
+    // HIP doesn't support CacheModifiedInputIterator with raw pointer constructor
+    cub::LoadDirectWarpStriped(
+        idx,
+        ders,
+        weightsPerThread,
+        size,
+        inf
+    );
+#else
     cub::CacheModifiedInputIterator<cub::LOAD_CS, float> inputIterator(ders);
     cub::LoadDirectWarpStriped(
         idx,
@@ -211,6 +228,7 @@ __global__ void MvsBootstrapRadixSortImpl(
         size,
         inf
     );
+#endif
 
     #pragma unroll
     for (int k = 0; k < ITEMS_PER_THREAD; k++) {
@@ -298,3 +316,4 @@ void CalculateMvsThreshold(
 }
 
 }
+

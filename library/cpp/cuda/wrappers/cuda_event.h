@@ -6,8 +6,11 @@
 
 #include <util/generic/ptr.h>
 
+#if defined(__HIP_PLATFORM_AMD__)
+// HIP: cuda types from exception.h (hip/hip_runtime.h + cuda_rocm_interop.h).
+#else
 #include <cuda_runtime.h>
-
+#endif
 
 class TCudaEvent {
 private:

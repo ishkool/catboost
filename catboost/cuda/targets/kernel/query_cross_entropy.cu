@@ -7,10 +7,13 @@
 
 #include <util/generic/cast.h>
 
+#if defined(__HIP_PLATFORM_AMD__)
+// HIP doesn't have util_ptx.cuh - functionality is built into HIP intrinsics
+#include <hip/hip_cooperative_groups.h>
+#else
 #include <cub/util_ptx.cuh>
-
-
 #include <cooperative_groups.h>
+#endif
 
 #include <cassert>
 #include <cstdio>
@@ -634,3 +637,4 @@ namespace NKernel {
 
 
 }
+

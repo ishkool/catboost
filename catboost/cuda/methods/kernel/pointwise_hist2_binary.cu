@@ -2,7 +2,11 @@
 #include "split_properties_helpers.cuh"
 #include "compute_point_hist2_loop.cuh"
 #include "pointwise_hist2_half_byte_template.cuh"
+#if defined(__HIP_PLATFORM_AMD__)
+#include <hip/hip_cooperative_groups.h>
+#else
 #include <cooperative_groups.h>
+#endif
 #include <library/cpp/cuda/wrappers/arch.h>
 #include <catboost/cuda/cuda_util/kernel/instructions.cuh>
 #include <catboost/cuda/cuda_util/kernel/kernel_helpers.cuh>
@@ -111,13 +115,13 @@ namespace NKernel
         if (fullPass)
         {
             ComputeSplitPropertiesBImpl <BlockSize, true,
-                    BlocksPerFeatureCount > << <numBlocks,BlockSize, 0, stream>>>(
+                    BlocksPerFeatureCount > <<<numBlocks,BlockSize, 0, stream>>>(
                     bFeatures, bCount, cindex, target, weight, indices, partition, binSums, totalFeatureCount
             );
         } else
         {
             ComputeSplitPropertiesBImpl <BlockSize, false,
-                    BlocksPerFeatureCount > << <numBlocks,BlockSize, 0, stream>>>(
+                    BlocksPerFeatureCount > <<<numBlocks,BlockSize, 0, stream>>>(
                     bFeatures, bCount, cindex, target, weight, indices, partition, binSums, totalFeatureCount
             );
         }
@@ -176,3 +180,4 @@ namespace NKernel
         }
     }
 }
+

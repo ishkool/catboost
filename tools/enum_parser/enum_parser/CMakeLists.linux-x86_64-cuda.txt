@@ -23,6 +23,10 @@ target_link_libraries(enum_parser PUBLIC
   library-cpp-cpuid_check
   cpp-getopt-small
   tools-enum_parser-parse_enum
+  stdc++
+  gcc_s
+  c
+  pthread
 )
 
 target_allocator(enum_parser
@@ -36,9 +40,6 @@ target_link_options(enum_parser PRIVATE
   -Wl,--no-as-needed
   -fPIC
   -fPIC
-  -lpthread
-  -lrt
-  -ldl
 )
 
 target_sources(enum_parser PRIVATE
@@ -47,3 +48,4 @@ target_sources(enum_parser PRIVATE
 
 
 vcs_info(enum_parser)
+

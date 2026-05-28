@@ -17,10 +17,18 @@ add_subdirectory(ut)
 add_library(util-charset)
 
 
-target_link_libraries(util-charset PUBLIC
-  contrib-libs-linux-headers
-  contrib-libs-cxxsupp
-)
+if (HAVE_ROCM)
+  # For ROCm builds: Don't use libcxxcuda11
+  target_link_libraries(util-charset PUBLIC
+    contrib-libs-linux-headers
+  )
+else()
+  # For CUDA builds: Use libcxxcuda11
+  target_link_libraries(util-charset PUBLIC
+    contrib-libs-linux-headers
+    contrib-libs-cxxsupp
+  )
+endif()
 
 
 target_joined_source(util-charset
@@ -40,3 +48,4 @@ target_sources_custom(util-charset
   CUSTOM_FLAGS
   -msse4.1
 )
+

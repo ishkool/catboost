@@ -42,6 +42,17 @@ target_link_libraries(tools-model_perftest-lib.global PUBLIC
   libs-model-cuda
 )
 
+# ROCm/Clang needs explicit C++ standard library and runtime linking
+if(HAVE_ROCM OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+  target_link_libraries(tools-model_perftest-lib.global PUBLIC
+    stdc++
+    c++abi
+    unwind
+    gcc_s
+    c
+  )
+endif()
+
 target_sources(tools-model_perftest-lib.global PRIVATE
   ${PROJECT_SOURCE_DIR}/catboost/tools/model_perftest/lib/main.cpp
   ${PROJECT_SOURCE_DIR}/catboost/tools/model_perftest/lib/perftest_modules.cpp

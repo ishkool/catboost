@@ -8,7 +8,11 @@
 
 #include <util/string/cast.h>
 
+#if defined(__HIP_PLATFORM_AMD__)
+#include <hip/hip_runtime.h>
+#else
 #include <cuda_runtime.h>
+#endif
 #include <assert.h>
 
 template<typename TFeatureType, TGPUDataInput::EFeatureLayout Layout>
@@ -110,7 +114,8 @@ __global__ void Binarize(
     features.z = floatAccessor(featureIdx, firstDocForThread + 2 * WarpSize);
     features.w = floatAccessor(featureIdx, firstDocForThread + 3 * WarpSize);
 
-    TCudaQuantizationBucket bins = { 0 };
+    TCudaQuantizationBucket bins;
+    bins.x = bins.y = bins.z = bins.w = 0;
 #pragma unroll 8
     for (int borderId = 0; borderId < featureBorderCount; ++borderId) {
         const float border = bordersLocal[borderId];
@@ -127,7 +132,8 @@ __global__ void Binarize(
 
 template<int TreeDepth>
 TTreeIndex __device__ __forceinline__ CalcIndexesUnwrapped(const TGPURepackedBin* const __restrict__ curRepackedBinPtr, const TCudaQuantizationBucket* const __restrict__ quantizedFeatures) {
-    TTreeIndex result = { 0 };
+    TTreeIndex result;
+    result.x = result.y = result.z = result.w = 0;
 #pragma unroll TreeDepth
     for (int depth = 0; depth < TreeDepth; ++depth) {
         const TGPURepackedBin bin = Ldg(curRepackedBinPtr + depth);
@@ -142,7 +148,8 @@ TTreeIndex __device__ __forceinline__ CalcIndexesUnwrapped(const TGPURepackedBin
 }
 
 TTreeIndex __device__ CalcIndexesBase(int TreeDepth, const TGPURepackedBin* const __restrict__ curRepackedBinPtr, const TCudaQuantizationBucket* const __restrict__ quantizedFeatures) {
-    TTreeIndex bins = { 0 };
+    TTreeIndex bins;
+    bins.x = bins.y = bins.z = bins.w = 0;
     for (int depth = 0; depth < TreeDepth; ++depth) {
         const TGPURepackedBin bin = Ldg(curRepackedBinPtr + depth);
         TCudaQuantizationBucket vals = __ldg(quantizedFeatures + bin.FeatureIdx);
@@ -190,7 +197,8 @@ __global__ void EvalObliviousTrees(
 
     const int firstTreeIdx = TreeSubBlockWidth * ExtTreeBlockWidth * (threadIdx.y + TreeSubBlockWidth * blockIdx.x);
     const int lastTreeIdx = min(firstTreeIdx + TreeSubBlockWidth * ExtTreeBlockWidth, treeCount);
-    double4 localResult = { 0 };
+    double4 localResult;
+    localResult.x = localResult.y = localResult.z = localResult.w = 0;
 
     if (firstTreeIdx < lastTreeIdx && firstDocForThread < documentCount) {
         const TGPURepackedBin* __restrict__ curRepackedBinPtr = repackedBins + __ldg(treeStartOffsets + firstTreeIdx);
@@ -426,3 +434,4 @@ void TGPUCatboostEvaluationContext::EvalData(
     QuantizeData(dataInput, &quantizedData);
     EvalQuantizedData(&quantizedData, treeStart, treeEnd, result, predictionType);
 }
+

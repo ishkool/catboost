@@ -745,8 +745,14 @@ namespace NThreading {
     }
 
     template <typename R>
+#if defined(__HIP_PLATFORM_AMD__)
+    // ROCm/HIP: libc++ on this platform exposes the internal __remove_cvref_t in some configs
+    inline TFuture<std::__remove_cvref_t<R>> TFuture<void>::Return(R&& value) const {
+        auto promise = NewPromise<std::__remove_cvref_t<R>>();
+#else
     inline TFuture<std::remove_cvref_t<R>> TFuture<void>::Return(R&& value) const {
         auto promise = NewPromise<std::remove_cvref_t<R>>();
+#endif
         Subscribe([promise, value = std::forward<R>(value)](const TFuture<void>& future) mutable {
             try {
                 future.TryRethrow();
@@ -1011,3 +1017,4 @@ namespace NThreading {
         return Singleton<TCache>()->Instance;
     }
 }
+

@@ -1,9 +1,15 @@
 #pragma once
 
-
+#if defined(__HIP_PLATFORM_AMD__)
+#include <hip/hip_runtime.h>
+#else
+#include <cuda_runtime.h>
+#endif
 
 namespace NKernel {
 
+#if !defined(__HIP_PLATFORM_AMD__)
+    // These operators are already defined in HIP runtime
     __host__ __device__ __forceinline__ uint2 operator+(const uint2& left, const uint2& right) {
         uint2 res = left;
         res.x += right.x;
@@ -24,6 +30,7 @@ namespace NKernel {
         res.y *= right.y;
         return res;
     }
+#endif
 
 
     template <class T>
@@ -44,3 +51,5 @@ namespace NKernel {
 
 
 }
+
+

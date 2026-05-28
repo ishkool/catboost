@@ -14,17 +14,40 @@
 
 add_library(cpp-cuda-wrappers)
 
+if (HAVE_ROCM)
+  if(${CMAKE_VERSION} VERSION_LESS "3.17.0")
+      message(FATAL_ERROR "Build with HIP requires at least cmake 3.17.0")
+  endif()
 
-target_link_libraries(cpp-cuda-wrappers PUBLIC
-  contrib-libs-linux-headers
-  contrib-libs-cxxsupp
-  yutil
-  internal-platform-cuda
-  cpp-cuda-exception
-  cpp-threading-future
-)
+  enable_language(HIP)
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -D__HIP_PLATFORM_AMD__")
 
-target_sources(cpp-cuda-wrappers PRIVATE
+  find_package(HIP REQUIRED)
+  target_include_directories(cpp-cuda-wrappers PRIVATE ${HIP_INCLUDE_DIRS})
+endif()
+
+if (HAVE_ROCM)
+  # ROCm/HIP build: skip libcxxsupp (clang uses system libc++).
+  target_link_libraries(cpp-cuda-wrappers PUBLIC
+    contrib-libs-linux-headers
+    yutil
+    internal-platform-cuda
+    cpp-cuda-exception
+    cpp-threading-future
+  )
+else()
+  # CUDA build: keep libcxxsupp.
+  target_link_libraries(cpp-cuda-wrappers PUBLIC
+    contrib-libs-linux-headers
+    contrib-libs-cxxsupp
+    yutil
+    internal-platform-cuda
+    cpp-cuda-exception
+    cpp-threading-future
+  )
+endif()
+
+set(WRAPPER_CPP_SOURCES
   ${PROJECT_SOURCE_DIR}/library/cpp/cuda/wrappers/base.cpp
   ${PROJECT_SOURCE_DIR}/library/cpp/cuda/wrappers/run_gpu_program.cpp
   ${PROJECT_SOURCE_DIR}/library/cpp/cuda/wrappers/cuda_event.cpp
@@ -35,14 +58,21 @@ target_sources(cpp-cuda-wrappers PRIVATE
   ${PROJECT_SOURCE_DIR}/library/cpp/cuda/wrappers/stream_capture.cpp
 )
 
+target_sources(cpp-cuda-wrappers PRIVATE ${WRAPPER_CPP_SOURCES})
+
+# For ROCm builds: libcxxcuda11 is not linked, so no special handling needed
+# The system C++ library will be used automatically
+
 target_cuda_sources(cpp-cuda-wrappers PRIVATE
   ${PROJECT_SOURCE_DIR}/library/cpp/cuda/wrappers/kernel.cu
   ${PROJECT_SOURCE_DIR}/library/cpp/cuda/wrappers/kernel_helpers.cu
 )
 
-
+if (NOT HAVE_ROCM)
 target_cuda_flags(cpp-cuda-wrappers
   -lineinfo
   --use_fast_math
   -Wno-deprecated-gpu-targets
 )
+endif()
+

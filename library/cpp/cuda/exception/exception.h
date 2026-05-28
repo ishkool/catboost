@@ -1,6 +1,18 @@
 #pragma once
 
+// Fix for ROCm bug: hip_runtime_api.h uses UINT_MAX but doesn't include <limits.h>
+#if defined(__HIP_PLATFORM_AMD__)
+#include <limits.h>
+#include <climits>
+#endif
+
+#if defined(__HIP_PLATFORM_AMD__)
+#include <hip/hip_runtime.h>
+#include "cuda_rocm_interop.h"
+#else
 #include <cuda_runtime.h>
+#endif
+
 #include <util/generic/va_args.h>
 #include <util/generic/yexception.h>
 #include <util/system/defaults.h>
@@ -26,6 +38,17 @@ private:
 };
 
 
+// HIP runtime does not expose cudaErrorCudartUnloading (no shared-runtime unload semantics
+// on ROCm), so drop that check on HIP and keep the original behaviour for CUDA.
+#if defined(__HIP_PLATFORM_AMD__)
+#define CUDA_SAFE_CALL(statement)                                                                                    \
+    {                                                                                                                \
+        cudaError_t errorCode = statement;                                                                           \
+        if (errorCode != cudaSuccess) {                                                                              \
+            ythrow TCudaException(errorCode) << "CUDA error " << (int)errorCode << ": " << cudaGetErrorString(errorCode); \
+        }                                                                                                            \
+    }
+#else
 #define CUDA_SAFE_CALL(statement)                                                                                    \
     {                                                                                                                \
         cudaError_t errorCode = statement;                                                                           \
@@ -33,6 +56,7 @@ private:
             ythrow TCudaException(errorCode) << "CUDA error " << (int)errorCode << ": " << cudaGetErrorString(errorCode); \
         }                                                                                                            \
     }
+#endif
 
 #ifdef _MSC_VER
 #define CUDA_DISABLE_4297_WARN __pragma(warning(push)); __pragma(warning(disable:4297))
@@ -45,6 +69,22 @@ private:
 #define CUDA_RESTORE_WARNINGS
 #endif
 
+#if defined(__HIP_PLATFORM_AMD__)
+#define CUDA_SAFE_CALL_FOR_DESTRUCTOR(statement)                                                                                    \
+    {                                                                                                                \
+        cudaError_t errorCode = statement;                                                                           \
+        if (errorCode != cudaSuccess) {                                                                              \
+            if (UncaughtException()) {                                                                               \
+                Cerr << "Got CUDA error " << (int)errorCode << ": " << cudaGetErrorString(errorCode);                \
+                Cerr << " while processing exception: " << CurrentExceptionMessage() << Endl;                        \
+            } else {                                                                                                 \
+                CUDA_DISABLE_4297_WARN                                                                               \
+                ythrow TCudaException(errorCode) << "CUDA error " << (int)errorCode << ": " << cudaGetErrorString(errorCode); \
+                CUDA_RESTORE_WARNINGS                                                                                 \
+            }                                                                                                        \
+        }                                                                                                            \
+    }
+#else
 #define CUDA_SAFE_CALL_FOR_DESTRUCTOR(statement)                                                                                    \
     {                                                                                                                \
         cudaError_t errorCode = statement;                                                                           \
@@ -59,6 +99,7 @@ private:
             }                                                                                                        \
         }                                                                                                            \
     }
+#endif
 
 
 class TCudaEnsureException : public TWithBackTrace<yexception> {
@@ -76,3 +117,4 @@ public:
 
 #define CUDA_ENSURE(...) \
     Y_PASS_VA_ARGS(Y_MACRO_IMPL_DISPATCHER_2(__VA_ARGS__, CUDA_ENSURE_IMPL_2, CUDA_ENSURE_IMPL_1)(__VA_ARGS__))
+

@@ -1,6 +1,15 @@
 #pragma once
 
+#if defined(__HIP_PLATFORM_AMD__)
+#include <hip/hip_runtime.h>
+// HIP provides math constants in hip_runtime.h
+// Define CUDA-specific constants for HIP
+#ifndef CUDART_PI_F
+#define CUDART_PI_F 3.141592654f
+#endif
+#else
 #include <math_constants.h>
+#endif
 
 
 namespace NKernel {
@@ -111,3 +120,5 @@ namespace NKernel {
     }
 
 }
+
+

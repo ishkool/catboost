@@ -23,7 +23,16 @@ endfunction()
 
 
 function(target_ragel_lexers TgtName Key Src)
-  SET(RAGEL_BIN ${PROJECT_BINARY_DIR}/bin/ragel${CMAKE_EXECUTABLE_SUFFIX})
+  # Prefer a system-installed ragel (e.g. `apt-get install ragel`); fall back to the
+  # build-tree location populated by the host-tools step (used in cross-builds).
+  if (NOT DEFINED CACHE{RAGEL_BIN})
+    find_program(RAGEL_BIN_FOUND ragel)
+    if (RAGEL_BIN_FOUND)
+      set(RAGEL_BIN "${RAGEL_BIN_FOUND}" CACHE FILEPATH "Path to the ragel binary")
+    else()
+      set(RAGEL_BIN "${PROJECT_BINARY_DIR}/bin/ragel${CMAKE_EXECUTABLE_SUFFIX}" CACHE FILEPATH "Path to the ragel binary")
+    endif()
+  endif()
   get_filename_component(OutPath ${Src} NAME_WLE)
   get_filename_component(SrcDirPath ${Src} DIRECTORY)
   get_filename_component(OutputExt ${OutPath} EXT)
@@ -40,7 +49,16 @@ function(target_ragel_lexers TgtName Key Src)
 endfunction()
 
 function(target_yasm_source TgtName Key Src)
-  SET(YASM_BIN ${PROJECT_BINARY_DIR}/bin/yasm${CMAKE_EXECUTABLE_SUFFIX})
+  # Prefer a system-installed yasm (e.g. `apt-get install yasm`); fall back to the
+  # build-tree location populated by the host-tools step (used in cross-builds).
+  if (NOT DEFINED CACHE{YASM_BIN})
+    find_program(YASM_BIN_FOUND yasm)
+    if (YASM_BIN_FOUND)
+      set(YASM_BIN "${YASM_BIN_FOUND}" CACHE FILEPATH "Path to the yasm binary")
+    else()
+      set(YASM_BIN "${PROJECT_BINARY_DIR}/bin/yasm${CMAKE_EXECUTABLE_SUFFIX}" CACHE FILEPATH "Path to the yasm binary")
+    endif()
+  endif()
   get_filename_component(OutPath ${Src} NAME_WLE)
   string(APPEND OutPath .o)
   add_custom_command(

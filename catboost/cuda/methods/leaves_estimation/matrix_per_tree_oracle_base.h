@@ -102,7 +102,8 @@ namespace NCatboostCuda {
         }
 
         void Regularize(TVector<float>* point) final {
-            RegularizeImpl(LeavesEstimationConfig, TConstArrayRef<double>(BinWeightsSum.data(), BinWeightsSum.data() + PointDim()), point);
+            // Use .data()+size form for libc++ compatibility (iterators may not be raw ptrs).
+            RegularizeImpl(LeavesEstimationConfig, TConstArrayRef<double>(BinWeightsSum.data(), PointDim()), point);
         }
 
         void WriteValueAndFirstDerivatives(double* value,
@@ -247,3 +248,4 @@ namespace NCatboostCuda {
     };
 
 }
+

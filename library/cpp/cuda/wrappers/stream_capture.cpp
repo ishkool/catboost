@@ -2,8 +2,11 @@
 
 #include <library/cpp/cuda/exception/exception.h>
 
+#if defined(__HIP_PLATFORM_AMD__)
+// HIP: cuda types from exception.h.
+#else
 #include <cuda_runtime.h>
-
+#endif
 
 namespace NCuda {
     TStreamCapture::~TStreamCapture() {

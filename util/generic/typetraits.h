@@ -6,7 +6,9 @@
 
 #include <iterator>
 #include <type_traits>
+#if !defined(__HIP_PLATFORM_AMD__)
 #include <stlfwd>
+#endif
 
 #if _LIBCPP_STD_VER >= 17
 template <bool B>
@@ -332,3 +334,4 @@ namespace NPrivate {
 
 template <typename T>
 using TIsIterable = decltype(NPrivate::IsIterableImpl<T>(0));
+

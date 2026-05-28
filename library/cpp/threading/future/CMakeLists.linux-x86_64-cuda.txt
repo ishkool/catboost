@@ -15,11 +15,20 @@
 add_library(cpp-threading-future)
 
 
-target_link_libraries(cpp-threading-future PUBLIC
-  contrib-libs-linux-headers
-  contrib-libs-cxxsupp
-  yutil
-)
+if (HAVE_ROCM)
+  # For ROCm builds: Don't use libcxxcuda11
+  target_link_libraries(cpp-threading-future PUBLIC
+    contrib-libs-linux-headers
+    yutil
+  )
+else()
+  # For CUDA builds: Use libcxxcuda11
+  target_link_libraries(cpp-threading-future PUBLIC
+    contrib-libs-linux-headers
+    contrib-libs-cxxsupp
+    yutil
+  )
+endif()
 
 target_sources(cpp-threading-future PRIVATE
   ${PROJECT_SOURCE_DIR}/library/cpp/threading/future/async_semaphore.cpp
@@ -32,4 +41,5 @@ target_sources(cpp-threading-future PRIVATE
   ${PROJECT_SOURCE_DIR}/library/cpp/threading/future/wait/wait_group.cpp
   ${PROJECT_SOURCE_DIR}/library/cpp/threading/future/wait/wait_policy.cpp
 )
+
 
