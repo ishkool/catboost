@@ -1,0 +1,32 @@
+# Variables of the form ${<variable>} are substituted, currently the following
+# list is supported:
+#   - ${branch} (or {branch}) the name of the current branch
+#   - ${url} (or {url}) github url of the current project
+#   - ${project:<project_name>} base url of the documentation of <project_name>
+#     based on intersphinx_mapping.
+# These comments will also be removed.
+defaults:
+  numbered: False
+  maxdepth: 6
+root: index
+subtrees:
+  - caption: Install
+    entries:
+      - file: install/install.rst
+        title: Install with pip
+      - file: install/build-from-source.rst
+        title: Build from source
+
+  - caption: Reference
+    entries:
+      - url: https://catboost.ai/docs/en/
+        title: CatBoost documentation (upstream)
+      - url: https://catboost.ai/docs/en/concepts/python-quickstart
+        title: Python quick start (upstream)
+      - url: https://catboost.ai/docs/en/concepts/r-quickstart
+        title: R package quick start (upstream)
+
+  - caption: About
+    entries:
+      - file: about/license.rst
+        title: License
