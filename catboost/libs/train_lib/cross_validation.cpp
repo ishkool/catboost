@@ -201,9 +201,22 @@ public:
             FoldContext->OutputOptions.GetMetricPeriod());
         if (calcMetrics || ErrorTracker->IsActive()) {
             TVector<double> valuesToLog;
-            ErrorTracker->AddError(metricsAndTimeHistory.TestMetricsHistory[iteration][0].at(Metrics[0]->GetDescription()),
-                                   iteration,
-                                   &valuesToLog);
+            const auto& testHist = metricsAndTimeHistory.TestMetricsHistory;
+            // Guard against an unpopulated test-metric history. The original code did an
+            // unchecked TestMetricsHistory[iteration][0] read; if the history is shorter than
+            // TimeHistory (observed on the GPU path when training was distributed across more
+            // devices than allocated) that read goes out of bounds and segfaults. Skip the
+            // error-tracker update for this iteration instead of crashing.
+            if (iteration < testHist.size() && !testHist[iteration].empty()) {
+                ErrorTracker->AddError(testHist[iteration][0].at(Metrics[0]->GetDescription()),
+                                       iteration,
+                                       &valuesToLog);
+            } else {
+                CATBOOST_WARNING_LOG << "Cross-validation: no test-metric history for iteration "
+                    << iteration << " (TestMetricsHistory size " << testHist.size()
+                    << ", TimeHistory size " << metricsAndTimeHistory.TimeHistory.size()
+                    << "); skipping error-tracker update for this iteration" << Endl;
+            }
         }
         if (ErrorTracker->IsActive() && ErrorTracker -> GetIsNeedStop()) {
             return false;
