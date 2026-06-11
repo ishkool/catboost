@@ -20,6 +20,7 @@
 #include <bitset>
 #include <list>
 #include <string>
+#include <type_traits>
 
 #ifdef _MSC_VER
 #pragma warning(disable : 4127)
@@ -125,8 +126,29 @@ private:
             data.clear();
             data.resize(nSize);
         }
-        if (nSize > 0)
-            DataChunk(&data[0], sizeof(T) * nSize);
+        if (nSize > 0) {
+            if constexpr (std::is_same_v<T, bool>) {
+                // std::vector<bool> is bit-packed: &data[0] is a temporary proxy,
+                // not contiguous storage, so the bulk DataChunk below would read/
+                // write through a bogus pointer and crash. Serialize element-wise
+                // through a byte buffer instead.
+                if (IsReading()) {
+                    TVector<ui8> bytes(nSize);
+                    DataChunk(bytes.data(), sizeof(ui8) * nSize);
+                    for (TStoredSize i = 0; i < nSize; ++i) {
+                        data[i] = (bytes[i] != 0);
+                    }
+                } else {
+                    TVector<ui8> bytes(nSize);
+                    for (TStoredSize i = 0; i < nSize; ++i) {
+                        bytes[i] = data[i] ? 1 : 0;
+                    }
+                    DataChunk(bytes.data(), sizeof(ui8) * nSize);
+                }
+            } else {
+                DataChunk(&data[0], sizeof(T) * nSize);
+            }
+        }
     }
 
     template <class AM>
