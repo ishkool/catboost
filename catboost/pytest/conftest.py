@@ -4,21 +4,18 @@ except ImportError:
     from lib import compressed_data  # noqa
     pytest_plugins = ["lib.common.pytest_plugin"]
 
+import os
 import pytest
 
 # Failing tests on ROCM from ish_cli.log – skipped so they don't run (Skipped for ROCM need to be fixed)
 SKIP_KNOWN_FAILURES_CLI = frozenset([
-    "cuda_tests/test_gpu.py::test_rmse_with_uncertainty",
-    "cuda_tests/test_gpu.py::test_multilogloss[MultiLogloss]",
-    "cuda_tests/test_gpu.py::test_multilogloss[MultiCrossEntropy]",
-    "cuda_tests/test_gpu.py::test_multilogloss_with_bow[MultiLogloss]",
-    "cuda_tests/test_gpu.py::test_multilogloss_with_bow[MultiCrossEntropy]",
-    "cuda_tests/test_gpu.py::test_multirmse",
-    "cuda_tests/test_gpu.py::test_multirmse_with_cat_features",
-    "cuda_tests/test_gpu.py::test_multiclass_baseline[MultiClass]",
-    "cuda_tests/test_gpu.py::test_multiclass_baseline[MultiClassOneVsAll]",
+    # Multi-target GPU split-scoring bug FIXED (hipcub::WarpScan logical width 32 in
+    # greedy_subsets_searcher histogram scan) — these 10 now pass and were un-skipped 2026-06-11:
+    #   test_rmse_with_uncertainty, test_multilogloss[MultiLogloss|MultiCrossEntropy],
+    #   test_multilogloss_with_bow[...], test_multirmse, test_multirmse_with_cat_features,
+    #   test_multiclass_baseline[MultiClass|MultiClassOneVsAll], test_shrink_model_with_text_features[SymmetricTree]
+    # Still failing: single-target fit-vs-apply self-consistency at rtol=1e-4 (separate Group B issue):
     "cuda_tests/test_gpu.py::test_grow_policies[Logloss-Cosine-SymmetricTree-Ordered]",
-    "cuda_tests/test_gpu.py::test_shrink_model_with_text_features[SymmetricTree]",
     "test.py::test_dist_train_multiregression[calc_block=60]",
     "test.py::test_dist_train_multiregression[calc_block=5000000]",
     "test.py::test_dist_train_multiregression_single[calc_block=60]",
@@ -90,7 +87,12 @@ SKIP_KNOWN_FAILURES_CLI = frozenset([
 
 
 def pytest_collection_modifyitems(config, items):
-    """Skip known-failing CLI tests on ROCM (need to be fixed)."""
+    """Skip known-failing CLI tests on ROCM (need to be fixed).
+
+    Set RUN_KNOWN_FAILURES_CLI=1 to force them to run (for debugging); default behavior unchanged.
+    """
+    if os.environ.get("RUN_KNOWN_FAILURES_CLI") == "1":
+        return
     for item in items:
         if item.nodeid in SKIP_KNOWN_FAILURES_CLI:
             item.add_marker(pytest.mark.skip(reason="Skipped for ROCM need to be fixed"))

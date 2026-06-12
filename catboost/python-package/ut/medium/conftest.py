@@ -18,10 +18,14 @@ def pytest_configure(config):
 # Known failing tests on ROCM (from all_medium_tests_failures_summary.md) – skipped so they don't run
 SKIP_KNOWN_FAILURES = frozenset([
     "test_regression_ctr[GPU]",
-    "test_cv_query[GPU-loss_function=QueryRMSE]",
-    "test_cv_query[GPU-loss_function=YetiRank]",
-    "test_cv_pairs[GPU]",
-    "test_cv_pairs_generated[GPU]",
+    # M2 GPU cv() ranking/pairs tests un-skipped 2026-06-12: these PASS with single-GPU visibility
+    # (verified 4/4). Their earlier segfault was environment-induced (multi-GPU stripe over-split),
+    # NOT a port bug — restrict to the allocated GPU (ROCR_VISIBLE_DEVICES) or pass devices=.
+    # See docs/CATBOOST_ROCM_CV_MULTIGPU_CRASH.md.
+    #   "test_cv_query[GPU-loss_function=QueryRMSE]",
+    #   "test_cv_query[GPU-loss_function=YetiRank]",
+    #   "test_cv_pairs[GPU]",
+    #   "test_cv_pairs_generated[GPU]",
     "test_custom_gpu_objective_metric[GPU]",
     "test_custom_gpu_eval_metric[GPU]",
     "test_eval_metric_correct_selection[GPU-True-False]",
@@ -97,7 +101,6 @@ SKIP_KNOWN_FAILURES = frozenset([
     "test_training_and_prediction_equal_on_pandas_dense_and_sparse_input[GPU-Plain-block-airlines_5k]",
     "test_training_and_prediction_equal_on_pandas_dense_and_sparse_input[GPU-Plain-block-black_friday]",
     "test_training_and_prediction_equal_on_pandas_dense_and_sparse_input[GPU-Plain-block-cloudness_small]",
-    "test_sklearn_meta_algo",
     "test_allow_const_label[GPU-allow_const_label=False-problem_type=binclass]",
     "test_predict_on_gpu[GPU-problem=BinaryClassification-prediction_type=RawFormulaVal-feature_types=NumericCateg]",
 ])
@@ -129,7 +132,7 @@ def pytest_collection_modifyitems(config, items):
             test_id = item.nodeid.split("test.py::", 1)[1]
             if test_id in SKIP_PIPELINE_NO_DOWNLOAD:
                 item.add_marker(pytest.mark.skip(reason="Skipping as pipeline does not allow downloading data"))
-            elif test_id in SKIP_KNOWN_FAILURES:
+            elif test_id in SKIP_KNOWN_FAILURES and os.environ.get("RUN_KNOWN_FAILURES") != "1":
                 item.add_marker(pytest.mark.skip(reason="Skipped for ROCM need to be fixed"))
 
 
