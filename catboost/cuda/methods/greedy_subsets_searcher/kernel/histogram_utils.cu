@@ -387,7 +387,11 @@ namespace NKernel
                                        float* histograms) {
 
         const int featuresPerBlock = BlockSize / 32;
-        using WarpScan = cub::WarpScan<double>;
+        // ROCm/HIP fix: pin logical warp width to 32. hipcub::WarpScan defaults to the 64-lane
+        // AMD wavefront, but this kernel packs one feature per 32 lanes (tempStorage per 32-warp,
+        // ShuffleIndex<32> below). A 64-wide scan merges two features' folds → corrupted prefix
+        // sums (root cause of multi-target split-scoring picking only feature 0 on GPU).
+        using WarpScan = cub::WarpScan<double, 32>;
         __shared__ typename WarpScan::TempStorage tempStorage[featuresPerBlock];
 
         const int warpId = threadIdx.x / 32;
@@ -466,7 +470,11 @@ namespace NKernel
                                       float* histograms) {
 
         const int featuresPerBlock = BlockSize / 32;
-        using WarpScan = cub::WarpScan<double>;
+        // ROCm/HIP fix: pin logical warp width to 32. hipcub::WarpScan defaults to the 64-lane
+        // AMD wavefront, but this kernel packs one feature per 32 lanes (tempStorage per 32-warp,
+        // ShuffleIndex<32> below). A 64-wide scan merges two features' folds → corrupted prefix
+        // sums (root cause of multi-target split-scoring picking only feature 0 on GPU).
+        using WarpScan = cub::WarpScan<double, 32>;
         __shared__ typename WarpScan::TempStorage tempStorage[featuresPerBlock];
 
         const int warpId = threadIdx.x / 32;
