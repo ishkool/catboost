@@ -788,7 +788,11 @@ TObjectsDataProviderPtr NCB::TRawObjectsDataProvider::GetSubsetImpl(
     // needed only for sparse features
     TMaybe<TFeaturesArraySubsetInvertedIndexing> subsetInvertedIndexing;
 
-    if (CommonData.FeaturesLayout->HasSparseFeatures()) {
+    // Use actual stored-column sparsity (ground truth) rather than the features-layout IsSparse
+    // flag: for features-order (e.g. pandas) input the layout is built before data is read and its
+    // IsSparse flag is never set, so HasSparseFeatures() would miss genuinely-sparse columns and the
+    // sparse holders' CloneWithNewSubsetIndexing would dereference an empty InvertedSubsetIndexing.
+    if (HasSparseData()) {
         subsetInvertedIndexing.ConstructInPlace(
             GetInvertedIndexing(objectsGroupingSubset.GetObjectsIndexing(), GetObjectCount(), localExecutor)
         );
@@ -1711,7 +1715,9 @@ NCB::TObjectsDataProviderPtr NCB::TQuantizedObjectsDataProvider::GetSubsetImpl(
     );
 
     TMaybe<TFeaturesArraySubsetInvertedIndexing> subsetInvertedIndexing;
-    if (subsetCommonData.FeaturesLayout->HasSparseFeatures()) {
+    // Ground-truth column sparsity (see TRawObjectsDataProvider::GetSubsetImpl) rather than the
+    // features-layout IsSparse flag, which is not set for features-order (pandas) sparse input.
+    if (HasSparseData()) {
         subsetInvertedIndexing.ConstructInPlace(
             GetInvertedIndexing(objectsGroupingSubset.GetObjectsIndexing(), GetObjectCount(), localExecutor)
         );
