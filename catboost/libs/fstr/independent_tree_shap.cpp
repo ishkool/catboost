@@ -418,14 +418,72 @@ void PostProcessingIndependent(
     EExplainableModelOutput modelOutputType = independentTreeShapParams.ModelOutputType;
     const bool isNotRawOutputType = (EExplainableModelOutput::Raw != modelOutputType);
     const auto& metric = *independentTreeShapParams.Metric.Get();
-    const auto& approxOfDataset = independentTreeShapParams.ApproxOfDataset;
-    const auto& approxOfReferenceDataset = independentTreeShapParams.ApproxOfReferenceDataset;
     const auto& targetOfDataset = independentTreeShapParams.TargetOfDataset;
     const auto& transformedTargetOfDataset = independentTreeShapParams.TransformedTargetOfDataset;
     const bool isExplainMultiClassProbabilities = approxDimension > 1 && EExplainableModelOutput::Probability == modelOutputType;
+
+    // GPU-trained MultiClass models keep K-1 free logit dimensions and pad the K-th model
+    // dimension with zeros (see cuda/cpu_compatibility_helpers/model_converter.cpp), so the raw
+    // approx of the last class is identically 0. The per-class softmax secant below needs
+    // (approxOfDocument - approxOfReference) != 0 for every class; when it is 0 the probability
+    // rescale is skipped and that class's attribution is silently dropped, breaking SHAP
+    // completeness for the last class. Softmax is shift-invariant, so we center the logits and the
+    // internal shap contributions across the class dimension: every probability/mean is unchanged,
+    // but each class's logit now varies. No-op for CPU MultiClass (already mean-centered);
+    // restores completeness for GPU-trained models (this also fixes the NVIDIA CUDA path).
+    TVector<TVector<TVector<double>>> centeredShapValuesInternal;
+    TVector<TVector<double>> centeredApproxOfDataset;
+    TVector<TVector<double>> centeredApproxOfReferenceDataset;
+    if (isExplainMultiClassProbabilities) {
+        centeredShapValuesInternal = shapValuesInternalForAllReferences;
+        for (auto& shapValuesForReference : centeredShapValuesInternal) { // [dim][featureWithMean]
+            const size_t dims = shapValuesForReference.size();
+            if (dims == 0) {
+                continue;
+            }
+            const size_t featureWithMeanCount = shapValuesForReference[0].size();
+            for (size_t featureIdx = 0; featureIdx < featureWithMeanCount; ++featureIdx) {
+                double mean = 0.0;
+                for (size_t dim = 0; dim < dims; ++dim) {
+                    mean += shapValuesForReference[dim][featureIdx];
+                }
+                mean /= dims;
+                for (size_t dim = 0; dim < dims; ++dim) {
+                    shapValuesForReference[dim][featureIdx] -= mean;
+                }
+            }
+        }
+        const auto centerOverClasses = [approxDimension] (TVector<TVector<double>>* matrix) {
+            if (matrix->empty()) {
+                return;
+            }
+            const size_t columnCount = (*matrix)[0].size();
+            for (size_t column = 0; column < columnCount; ++column) {
+                double mean = 0.0;
+                for (size_t dim = 0; dim < approxDimension; ++dim) {
+                    mean += (*matrix)[dim][column];
+                }
+                mean /= approxDimension;
+                for (size_t dim = 0; dim < approxDimension; ++dim) {
+                    (*matrix)[dim][column] -= mean;
+                }
+            }
+        };
+        centeredApproxOfDataset = independentTreeShapParams.ApproxOfDataset;
+        centeredApproxOfReferenceDataset = independentTreeShapParams.ApproxOfReferenceDataset;
+        centerOverClasses(&centeredApproxOfDataset);
+        centerOverClasses(&centeredApproxOfReferenceDataset);
+    }
+    const TVector<TVector<TVector<double>>>& shapValuesInternalForAllReferencesUse =
+        isExplainMultiClassProbabilities ? centeredShapValuesInternal : shapValuesInternalForAllReferences;
+    const TVector<TVector<double>>& approxOfDataset =
+        isExplainMultiClassProbabilities ? centeredApproxOfDataset : independentTreeShapParams.ApproxOfDataset;
+    const TVector<TVector<double>>& approxOfReferenceDataset =
+        isExplainMultiClassProbabilities ? centeredApproxOfReferenceDataset : independentTreeShapParams.ApproxOfReferenceDataset;
+
     TVector<TVector<double>> meanValuesProbabitiesForAllReference;
     if (isExplainMultiClassProbabilities) {
-        meanValuesProbabitiesForAllReference = GetProbabilityMeanValues(shapValuesInternalForAllReferences, bias);
+        meanValuesProbabitiesForAllReference = GetProbabilityMeanValues(shapValuesInternalForAllReferencesUse, bias);
     }
     // prepare shap values for all references
     TVector<TVector<TVector<double>>> shapValuesForAllReferences(approxDimension);
@@ -433,9 +491,9 @@ void PostProcessingIndependent(
         shapValuesForAllReferences[dimension].resize(referenceCount);
         for (size_t referenceIdx = 0; referenceIdx < referenceCount; ++referenceIdx) {
             shapValuesForAllReferences[dimension][referenceIdx] = calcInternalValues ?
-                shapValuesInternalForAllReferences[referenceIdx][dimension] :
+                shapValuesInternalForAllReferencesUse[referenceIdx][dimension] :
                 GetUnpackedShapValues(
-                    shapValuesInternalForAllReferences[referenceIdx][dimension],
+                    shapValuesInternalForAllReferencesUse[referenceIdx][dimension],
                     combinationClassFeatures,
                     flatFeatureCount
                 );
