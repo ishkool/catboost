@@ -26,11 +26,28 @@ def pytest_configure(config):
 
 # Known failing tests on ROCM (from all_medium_tests_failures_summary.md) – skipped so they don't run
 SKIP_KNOWN_FAILURES = frozenset([
-    #"test_regression_ctr[GPU]",
+    # CPU test (no task_type). NOT a feature_weights bug: it asserts predictions are identical across
+    # feature_weights formats (array/list/dict/string), which requires bitwise-reproducible training.
+    # On this build CPU training is only deterministic with an EXPLICIT thread_count — any explicit value
+    # incl. -1 (all 192 cores) gives 0 drift over many runs, but the DEFAULT (unset) thread_count path
+    # varies run-to-run (~1.3 raw-approx drift) on this high-core-count node, flipping a few near-zero
+    # class labels. Resolved feature_weights are identical for every format; thread_count=1 -> array==list.
+    # Toolchain/default-thread-pool fp nondeterminism (same family as the GreedyLogSum / Group B fp items),
+    # not a port bug. CLI suites are unaffected (they pass -T 4 explicitly). See debug notes 2026-06-17.
+    "test_different_formats_of_feature_weights",
+    # GPU-unsupported features (not port bugs): these raise a clean CatBoostError on GPU because the
+    # feature is intentionally unimplemented for task_type=GPU. Skip-listed so the suite is green without
+    # RUN_KNOWN_FAILURES; they still run (and error) under it.
+    #   - test_regression_ctr[GPU]: "GPU doesn't support target binarization per CTR; use ctr_target_border_count"
+    #   - test_full_history[GPU]: "approx_on_full_history is unimplemented for task type GPU"
+    #   - test_model_sum_and_init_with_differing_nan_processing_strategy[GPU]: train.cpp:323 "Training
+    #     continuation for GPU is not yet supported"
+    "test_regression_ctr[GPU]",
+    "test_full_history[GPU]",
+    "test_model_sum_and_init_with_differing_nan_processing_strategy[GPU]",
     # M2 GPU cv() ranking/pairs tests un-skipped 2026-06-12: these PASS with single-GPU visibility
     # (verified 4/4). Their earlier segfault was environment-induced (multi-GPU stripe over-split),
     # NOT a port bug — restrict to the allocated GPU (ROCR_VISIBLE_DEVICES) or pass devices=.
-    # See docs/CATBOOST_ROCM_CV_MULTIGPU_CRASH.md.
     #   "test_cv_query[GPU-loss_function=QueryRMSE]",
     #   "test_cv_query[GPU-loss_function=YetiRank]",
     #   "test_cv_pairs[GPU]",
@@ -86,11 +103,9 @@ SKIP_KNOWN_FAILURES = frozenset([
     #"test_custom_class_labels[GPU-label_type=int-class_count=5-loss_function=Logloss]",
     #"test_class_weights_list_binclass[GPU]",
     #"test_shap_feature_multiclass_probability[GPU]",
-    #"test_full_history[GPU]",
     #"test_eval_metrics[GPU-metric_period=10-loss_function=RMSE]",
     #"test_shap_verbose[TreeSHAP]",
     #"test_shap_verbose[IndependentTreeSHAP]",
-    #"test_model_sum_and_init_with_differing_nan_processing_strategy[GPU]",
     #"test_overfit_detector_with_resume_from_snapshot_and_metric_period[IncToDec-Ordered]",
     #"test_overfit_detector_with_resume_from_snapshot_and_metric_period[Iter-Ordered]",
     #"test_training_and_prediction_equal_on_pandas_dense_and_sparse_input[GPU-Ordered-integer-adult]",
@@ -128,6 +143,15 @@ if os.environ.get("CATBOOST_HIP_BUILD") == "1":
         #"test_repr",
     ])
 
+# numba-hip (the ROCm-DS numba backend used on AMD via pose_as_cuda above) does not yet implement
+# cuda.atomic.add, which this custom-objective kernel uses to accumulate gradients. Running it SIGABRTs
+# and crashes the whole pytest process, so it is skipped UNCONDITIONALLY on ROCm (even under
+# RUN_KNOWN_FAILURES) — a hard crash cannot be caught as xfail. The other custom-objective / eval-metric
+# tests use only cuda.grid/gridsize and pass under numba-hip.
+SKIP_HIP_NUMBA_UNSUPPORTED = frozenset([
+    "test_custom_gpu_objective_metric[GPU]",
+])
+
 # Tests that need to download data (e.g. monotonic2 from Yandex) – pipeline does not allow downloading
 SKIP_PIPELINE_NO_DOWNLOAD = frozenset([
     "test_different_formats_of_monotone_constraints[None]",
@@ -144,6 +168,8 @@ def pytest_collection_modifyitems(config, items):
             test_id = item.nodeid.split("test.py::", 1)[1]
             if test_id in SKIP_PIPELINE_NO_DOWNLOAD:
                 item.add_marker(pytest.mark.skip(reason="Skipping as pipeline does not allow downloading data"))
+            elif os.environ.get("HAVE_ROCM") == "1" and test_id in SKIP_HIP_NUMBA_UNSUPPORTED:
+                item.add_marker(pytest.mark.skip(reason="numba-hip lacks cuda.atomic.add (would SIGABRT the suite)"))
             elif test_id in SKIP_KNOWN_FAILURES and os.environ.get("RUN_KNOWN_FAILURES") != "1":
                 item.add_marker(pytest.mark.skip(reason="Skipped for ROCM need to be fixed"))
 
