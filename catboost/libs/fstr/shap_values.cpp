@@ -22,6 +22,17 @@
 using namespace NCB;
 
 
+// SHAP *tree*-block size, decoupled from CB_THREAD_LIMIT. The ROCm/HIP build raises CB_THREAD_LIMIT to 512
+// for *training* host-thread utilization (private/libs/options/restrictions.h); reusing it as the SHAP
+// tree-block size meant a 250-tree model fit in one 512-block, dropping a progress line vs upstream
+// (test_shap_verbose). 128 is the upstream value and restores that. NOTE: applied ONLY to the tree-block
+// loop. The document-block loops keep CB_THREAD_LIMIT — lowering them to 128 multiplied the document-block
+// count on large pools (e.g. 5000-doc airlines_5k) and exposed a crash in the multiclass interaction path
+// (test_shap_interaction_feature_importance_multiclass); the doc-block size doesn't affect test_shap_verbose
+// (its 101 docs are one block either way), so it is left untouched.
+constexpr size_t SHAP_CALC_BLOCK_SIZE = 128;
+
+
 namespace {
     struct TFeaturePathElement {
         int Feature;
@@ -1214,7 +1225,7 @@ void CalcShapValuesByLeaf(
     ECalcTypeShapValues calcType
 ) {
     const size_t treeCount = model.GetTreeCount();
-    const size_t treeBlockSize = CB_THREAD_LIMIT; // least necessary for threading
+    const size_t treeBlockSize = SHAP_CALC_BLOCK_SIZE; // SHAP block size (decoupled from CB_THREAD_LIMIT)
     TProfileInfo processTreesProfile(treeCount);
     TImportanceLogger treesLogger(treeCount, "trees processed", "Processing trees...", logPeriod);
 
@@ -1394,7 +1405,7 @@ TVector<TVector<TVector<double>>> CalcShapValuesWithPreparedTrees(
     ECalcTypeShapValues calcType
 ) {
     const size_t documentCount = dataset.ObjectsGrouping->GetObjectCount();
-    const size_t documentBlockSize = CB_THREAD_LIMIT; // least necessary for threading
+    const size_t documentBlockSize = CB_THREAD_LIMIT;
 
     const int flatFeatureCount = SafeIntegerCast<int>(dataset.MetaInfo.GetFeatureCount());
 
@@ -1621,7 +1632,7 @@ void CalcAndOutputShapValues(
     const int flatFeatureCount = SafeIntegerCast<int>(dataset.MetaInfo.GetFeatureCount());
 
     const size_t documentCount = dataset.ObjectsGrouping->GetObjectCount();
-    const size_t documentBlockSize = CB_THREAD_LIMIT; // least necessary for threading
+    const size_t documentBlockSize = CB_THREAD_LIMIT;
 
     TImportanceLogger documentsLogger(documentCount, "documents processed", "Processing documents...", logPeriod);
 

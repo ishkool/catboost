@@ -5854,9 +5854,9 @@ def test_shap_verbose(calc_shap_mode):
     with open(tmpfile, 'w') as cout:
         model.get_feature_importance(type=EFstrType.ShapValues, data=pool, verbose=12, reference_data=reference_data, log_cout=cout)
     if calc_shap_mode == "TreeSHAP":
-        assert (_count_lines(tmpfile) == 4) # Open source builds produce one fewer line of verbose output
+        assert (_count_lines(tmpfile) == 5)
     else:
-        assert (_count_lines(tmpfile) == 5) # Open source builds produce one fewer line of verbose output
+        assert (_count_lines(tmpfile) == 6)
 
 
 def test_eval_set_with_nans(task_type):
