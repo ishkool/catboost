@@ -21,10 +21,6 @@ SKIP_KNOWN_FAILURES_CLI = frozenset([
     # order lands under the line. A recompute-via-final-model fix (Option A, 2026-06-16) fixed these but
     # regressed baseline/OneVsAll eval semantics globally for a cosmetic drift, so it was reverted; kept
     # skip-listed.
-    "cuda_tests/test_gpu.py::test_grow_policies[Logloss-Cosine-SymmetricTree-Ordered]",
-    "cuda_tests/test_gpu.py::test_grow_policies[MultiClass-L2-Depthwise-Plain]",
-    "cuda_tests/test_gpu.py::test_grow_policies[MultiClass-L2-Depthwise-Default]",
-    "cuda_tests/test_gpu.py::test_shrink_model_with_text_features[Lossguide]",
     # test_shap_verbose FIXED (un-skipped): the HIP CB_THREAD_LIMIT=512 was leaking into the SHAP block
     # size; decoupled via SHAP_CALC_BLOCK_SIZE=128 in libs/fstr/shap_values.cpp (CPU SHAP, restores the
     # upstream 5-line progress output). The two below remain GreedyLogSum border fp non-reproducibility
