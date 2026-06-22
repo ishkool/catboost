@@ -35,16 +35,12 @@ SKIP_KNOWN_FAILURES = frozenset([
     # Toolchain/default-thread-pool fp nondeterminism (same family as the GreedyLogSum / Group B fp items),
     # not a port bug. CLI suites are unaffected (they pass -T 4 explicitly). See debug notes 2026-06-17.
     "test_different_formats_of_feature_weights",
-    # GPU-unsupported features (not port bugs): these raise a clean CatBoostError on GPU because the
-    # feature is intentionally unimplemented for task_type=GPU. Skip-listed so the suite is green without
-    # RUN_KNOWN_FAILURES; they still run (and error) under it.
+    # GPU-unsupported features (not port bugs): these are decorated @fails_on_gpu(how=...) upstream and
+    # now xfail on GPU here too (see pytest_generate_tests below, mirroring upstream ut/medium/gpu/
+    # conftest.py). No longer skip-listed — they report as xfail like upstream 1.2.10:
     #   - test_regression_ctr[GPU]: "GPU doesn't support target binarization per CTR; use ctr_target_border_count"
     #   - test_full_history[GPU]: "approx_on_full_history is unimplemented for task type GPU"
-    #   - test_model_sum_and_init_with_differing_nan_processing_strategy[GPU]: train.cpp:323 "Training
-    #     continuation for GPU is not yet supported"
-    "test_regression_ctr[GPU]",
-    "test_full_history[GPU]",
-    "test_model_sum_and_init_with_differing_nan_processing_strategy[GPU]",
+    #   - test_model_sum_and_init_with_differing_nan_processing_strategy[GPU]: "Training continuation for GPU is not yet supported"
     # M2 GPU cv() ranking/pairs tests un-skipped 2026-06-12: these PASS with single-GPU visibility
     # (verified 4/4). Their earlier segfault was environment-induced (multi-GPU stripe over-split),
     # NOT a port bug — restrict to the allocated GPU (ROCR_VISIBLE_DEVICES) or pass devices=.
@@ -174,6 +170,27 @@ def pytest_collection_modifyitems(config, items):
                 item.add_marker(pytest.mark.skip(reason="Skipped for ROCM need to be fixed"))
 
 
-@pytest.fixture(params=['GPU'])
-def task_type(request):
-    return request.param
+# Force the ut/medium/test.py suite onto GPU (upstream's parent conftest is params=['CPU']) to exercise
+# the ROCm path, while honoring upstream's @fails_on_gpu(how=...) marker the same way upstream's
+# ut/medium/gpu/conftest.py does: tests marked @fails_on_gpu xfail on GPU (feature intentionally
+# unimplemented for task_type=GPU) instead of hard-failing. This mirrors upstream 1.2.10 GPU semantics
+# so e.g. test_regression_ctr[GPU]/test_full_history[GPU]/test_model_sum_..._nan[GPU] are xfail, not skip.
+def _get_fails_on_gpu_mark(metafunc):
+    for pytestmark in getattr(metafunc.function, 'pytestmark', []):
+        if pytestmark.name == 'fails_on_gpu':
+            return pytestmark
+    return None
+
+
+def pytest_generate_tests(metafunc):
+    if 'task_type' in metafunc.fixturenames:
+        fails_on_gpu = _get_fails_on_gpu_mark(metafunc)
+        if fails_on_gpu:
+            how = fails_on_gpu.kwargs.get('how', None)
+            xfail_reason = 'Needs fixing on GPU' + (': ' + how if how else '')
+            metafunc.parametrize(
+                'task_type',
+                [pytest.param('GPU', marks=pytest.mark.xfail(reason=xfail_reason))]
+            )
+        else:
+            metafunc.parametrize('task_type', ['GPU'])
